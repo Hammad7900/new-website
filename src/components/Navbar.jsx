@@ -5,7 +5,7 @@ import { ShoppingBag, Search, Shield, Menu, X, ArrowRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
 export const Navbar = () => {
-  const { cartCount } = useCart();
+  const { itemCount, shippingRate } = useCart();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -16,9 +16,9 @@ export const Navbar = () => {
       {/* Top Announcement Bar - Clean white-label */}
       <div className="bg-stone-900 text-stone-200 text-xs py-2 px-4 text-center font-medium tracking-wide flex items-center justify-center space-x-2">
         <span className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-pulse"></span>
-        <span>COMPLIMENTARY WORLDWIDE PRIORITY DELIVERY ON ORDERS OVER $150</span>
+        <span>FREE PRODUCTS · ${Number(shippingRate || 0).toFixed(2)} SHIPPING PER ORDER</span>
         <span className="hidden md:inline text-stone-500">•</span>
-        <span className="hidden md:inline text-stone-400">HANDCRAFTED LUXURY GOODS</span>
+              <span className="hidden md:inline text-stone-400">PAY SHIPPING AT CHECKOUT</span>
       </div>
 
       {/* Main Navigation Bar */}
@@ -50,7 +50,7 @@ export const Navbar = () => {
                 )}
               </Link>
               <a
-                href="/#bestsellers"
+                href="/#catalog"
                 className="text-stone-600 hover:text-stone-950 transition-colors py-1"
               >
                 Best Sellers
@@ -105,9 +105,9 @@ export const Navbar = () => {
                 title="View Bag"
               >
                 <ShoppingBag className="w-5 h-5" />
-                {cartCount > 0 && (
+                {itemCount > 0 && (
                   <span className="absolute top-1 right-1 w-5 h-5 rounded-full bg-stone-900 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
-                    {cartCount}
+                    {itemCount}
                   </span>
                 )}
               </Link>
@@ -126,7 +126,7 @@ export const Navbar = () => {
               Collection
             </Link>
             <a
-              href="/#bestsellers"
+              href="/#catalog"
               onClick={() => setMobileMenuOpen(false)}
               className="block text-sm font-semibold tracking-wider uppercase text-stone-700 py-2 border-b border-stone-100"
             >

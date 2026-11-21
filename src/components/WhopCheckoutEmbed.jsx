@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
 import { CreditCard, ExternalLink, ShieldCheck } from 'lucide-react';
 
-export const WhopCheckoutEmbed = ({ planId, total, onComplete }) => {
+export const WhopCheckoutEmbed = ({ checkoutUrl: configuredCheckoutUrl, total, onComplete }) => {
   const [checkoutOpened, setCheckoutOpened] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const rawPlanValue = planId || '';
-  const checkoutUrl = rawPlanValue.startsWith('https://')
-    ? rawPlanValue
-    : rawPlanValue
-      ? `https://whop.com/checkout/${rawPlanValue}`
-      : '';
+  const rawPlanValue = configuredCheckoutUrl || '';
+  const checkoutUrl = (() => {
+    try {
+      const url = new URL(rawPlanValue);
+      return url.protocol === 'https:' && (url.hostname === 'whop.com' || url.hostname.endsWith('.whop.com'))
+        ? url.toString()
+        : '';
+    } catch {
+      return '';
+    }
+  })();
 
   const submitForReview = async () => {
     setSubmitting(true);
@@ -38,7 +43,7 @@ export const WhopCheckoutEmbed = ({ planId, total, onComplete }) => {
           </a>
           {checkoutOpened && <button type="button" disabled={submitting} onClick={submitForReview} className="w-full mt-3 py-3 px-4 border border-stone-300 text-stone-800 font-semibold text-xs rounded-xl disabled:opacity-50">{submitting ? 'Submitting order…' : 'I completed payment · Submit order for verification'}</button>}
         </>
-      ) : <p className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3">Set VITE_WHOP_PLAN_ID to your Whop checkout URL or plan ID.</p>}
+      ) : <p className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3">Set VITE_WHOP_PLAN_ID to your full HTTPS Whop checkout URL. Configure that Whop plan to $1 for the test order.</p>}
       {error && <p className="text-xs text-rose-700 mt-3">{error}</p>}
     </div>
   );

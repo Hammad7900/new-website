@@ -11,7 +11,6 @@ import {
   ChevronRight,
   Shield,
   Truck,
-  Award,
   Minus,
   Plus,
   Check,
@@ -163,7 +162,7 @@ export const ProductPage = () => {
           <div className="py-4 space-y-6">
             <div>
               <span className="text-xs font-semibold uppercase tracking-widest text-stone-400">
-                {product.category}
+              {product.category || 'CJ Product'}
               </span>
               <h1 className="font-serif text-3xl sm:text-4xl text-stone-900 mt-2 leading-tight">
                 {product.name}
@@ -300,9 +299,8 @@ export const ProductPage = () => {
             {/* Trust badges */}
             <div className="grid grid-cols-3 gap-3 pt-4 border-t border-stone-100">
               {[
-                { Icon: Shield, label: 'Secure Checkout' },
+                { Icon: Shield, label: 'Whop checkout' },
                 { Icon: Truck, label: 'Shipping fee shown at checkout' },
-                { Icon: Award, label: 'Quality Assured' },
               ].map(({ Icon, label }) => (
                 <div
                   key={label}

@@ -157,7 +157,7 @@ export const AdminOrders = () => {
                 : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800'
             }`}
           >
-            Dispatched ({orders.filter((o) => o.status === 'PLACED_ON_CJ' || o.status === 'DISPATCHED').length})
+            CJ Order Created ({orders.filter((o) => o.status === 'PLACED_ON_CJ' || o.status === 'DISPATCHED').length})
           </button>
         </div>
 
@@ -253,10 +253,10 @@ export const AdminOrders = () => {
                           <div className="space-y-0.5">
                             <span className="inline-flex items-center text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full">
                               <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
-                              Dispatched
+                              CJ order created
                             </span>
                             <div className="text-[10px] font-mono text-stone-500 font-semibold pl-1">
-                              ID: {order.cjOrderId}
+                              CJ ID: {order.cjOrderId}
                             </div>
                           </div>
                         ) : order.status === 'PAYMENT_REVIEW' ? (
@@ -295,7 +295,7 @@ export const AdminOrders = () => {
                             ) : (
                               <>
                                 <Send className="w-3.5 h-3.5 text-amber-400" />
-                                <span>Dispatch to Factory</span>
+                    <span>Create CJ Order</span>
                               </>
                             )}
                           </button>
@@ -334,7 +334,7 @@ export const AdminOrders = () => {
                   <span className="text-[10px] text-stone-400 uppercase font-semibold block">Fulfillment Status</span>
                   <span className="font-semibold text-stone-900">
                     {selectedOrder.status === 'PLACED_ON_CJ' || selectedOrder.status === 'DISPATCHED'
-                      ? `Dispatched to Production (Reference: ${selectedOrder.cjOrderId})`
+                      ? `Order created in CJ (Reference: ${selectedOrder.cjOrderId}). Pay the CJ order in your CJ account to start fulfillment.`
                       : selectedOrder.status === 'PAYMENT_REVIEW' ? 'Payment must be verified in Whop before dispatch.' : 'Paid and ready for dispatch.'}
                   </span>
                 </div>
@@ -400,7 +400,7 @@ export const AdminOrders = () => {
                 )}
                 <div className="flex justify-between">
                   <span>Shipping</span>
-                  <span>{selectedOrder.shippingTotal === 0 || selectedOrder.shipping === 0 ? 'Free' : `$${(selectedOrder.shipping || selectedOrder.shippingTotal || 12.99).toFixed(2)}`}</span>
+                  <span>{selectedOrder.shippingTotal === 0 || selectedOrder.shipping === 0 ? 'Free' : `$${(selectedOrder.shipping || selectedOrder.shippingTotal || 1).toFixed(2)}`}</span>
                 </div>
                 <div className="pt-2 border-t border-stone-200 flex justify-between font-serif font-bold text-base text-stone-950">
                   <span>Total Amount</span>

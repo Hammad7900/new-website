@@ -30,9 +30,9 @@ function sendJson($status, $payload) {
 
 function loadStoreState() {
     $path = dirname(__DIR__) . '/.aura-store-data.json';
-    if (!is_file($path)) return ['shippingCost' => 12.99, 'coupons' => [], 'orders' => []];
+    if (!is_file($path)) return ['shippingCost' => 1.00, 'coupons' => [], 'orders' => []];
     $state = json_decode(@file_get_contents($path), true);
-    return is_array($state) ? array_merge(['shippingCost' => 12.99, 'coupons' => [], 'orders' => []], $state) : ['shippingCost' => 12.99, 'coupons' => [], 'orders' => []];
+    return is_array($state) ? array_merge(['shippingCost' => 1.00, 'coupons' => [], 'orders' => []], $state) : ['shippingCost' => 1.00, 'coupons' => [], 'orders' => []];
 }
 
 function saveStoreState($changes) {
@@ -314,13 +314,13 @@ if (strpos($uri, 'cj-products') !== false || $endpoint === 'cj-products') {
 
             $mappedSingle = [
                 'id' => $item['pid'] ?? $productId,
-                'name' => $item['productNameEn'] ?? $item['productName'] ?? 'Curated Atelier Piece',
+                'name' => $item['productNameEn'] ?? $item['productName'] ?? '',
                 'price' => $retailPrice,
                 'compareAtPrice' => $comparePrice,
                 'images' => !empty($item['productImageSet']) ? $item['productImageSet'] : [$item['bigImage'] ?? ''],
-                'description' => $item['description'] ?? $item['productNameEn'] ?? 'Curated premium item.',
-                'category' => $item['categoryName'] ?? 'Curated',
-                'sku' => $item['productSku'] ?? ('CJ-' . $productId),
+                'description' => $item['description'] ?? '',
+                'category' => $item['categoryName'] ?? '',
+                'sku' => $item['productSku'] ?? '',
                 'stock' => 0,
                 'rating' => 0,
                 'reviewsCount' => 0,
@@ -330,7 +330,7 @@ if (strpos($uri, 'cj-products') !== false || $endpoint === 'cj-products') {
                     }, $v['inventories'] ?? []));
                     return [
                         'vid' => $v['vid'] ?? '',
-                        'name' => $v['variantNameEn'] ?? $v['variantKeyEn'] ?? $v['variantKey'] ?? $v['variantName'] ?? 'Standard Edition',
+                        'name' => $v['variantNameEn'] ?? $v['variantKeyEn'] ?? $v['variantKey'] ?? $v['variantName'] ?? ($v['variantSku'] ?? ''),
                         'sku' => $v['variantSku'] ?? '',
                         'price' => $retailPrice,
                         'stock' => $inventory
@@ -357,19 +357,22 @@ if (strpos($uri, 'cj-products') !== false || $endpoint === 'cj-products') {
     $rawList = $listRes['data']['content'][0]['productList'] ?? $listRes['data']['list'] ?? $listRes['data']['productList'] ?? [];
 
     $mapped = [];
-    foreach ($rawList as $p) {
+    foreach (is_array($rawList) ? $rawList : [] as $p) {
+        $productIdFromCJ = $p['id'] ?? $p['pid'] ?? '';
+        $productNameFromCJ = trim((string)($p['nameEn'] ?? $p['productNameEn'] ?? ''));
+        if ($productIdFromCJ === '' || $productNameFromCJ === '') continue;
         $retail = 0;
         $compare = 0;
         $mapped[] = [
-            'id' => $p['id'],
-            'name' => $p['nameEn'] ?? $p['productNameEn'] ?? 'Luxury Atelier Item',
+            'id' => $productIdFromCJ,
+            'name' => $productNameFromCJ,
             'price' => $retail,
             'compareAtPrice' => $compare,
-            'images' => [$p['bigImage'] ?? $p['productImage'] ?? ''],
-            'description' => 'Direct from vetted master workshops. High-precision materials and verified priority courier dispatch.',
-            'category' => $p['threeCategoryName'] ?? $p['twoCategoryName'] ?? ($keyword ?: 'Curated'),
-            'sku' => $p['sku'] ?? ('REF-' . $p['id']),
-            'stock' => (int)($p['warehouseInventoryNum'] ?? 0),
+            'images' => array_values(array_filter([$p['bigImage'] ?? $p['productImage'] ?? ''])),
+            'description' => $p['description'] ?? '',
+            'category' => $p['threeCategoryName'] ?? $p['twoCategoryName'] ?? '',
+            'sku' => $p['sku'] ?? '',
+            'stock' => isset($p['warehouseInventoryNum']) ? (int)$p['warehouseInventoryNum'] : null,
             'rating' => 0,
             'reviewsCount' => 0,
             'variants' => []

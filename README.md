@@ -11,7 +11,7 @@ React storefront with a portable PHP API. The deployed site uses same-origin `/a
 
 ## Deploy to Hostinger or another PHP host
 
-1. Set `VITE_WHOP_PLAN_ID` in `.env` to the Whop checkout URL, then run `npm install` and `npm run build`.
+1. Set `VITE_WHOP_CHECKOUT_URL` in `.env` to your full Whop checkout URL and set that Whop plan to $1 for a test order, then run `npm install` and `npm run build`.
 2. Upload the **contents of `dist/`** into the hosting document root, such as `public_html/`. Keep both `.htaccess` files and the `api/` directory.
 3. Copy `api/config.example.php` to `api/config.php`. Put your CJ API key and a new, unique admin password in `config.php`. Set `cj_start_country_code` to the CJ warehouse origin for your products (the sample is `CN`). The file is ignored by Git and is not included in the build. The same credentials can be supplied as `CJ_API_KEY` and `ADMIN_PASSWORD` PHP environment variables.
 4. Confirm PHP can create and update `.aura-store-data.json` in the document root. The root `.htaccess` blocks public requests to this private data file.

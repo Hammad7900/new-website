@@ -3,43 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { HeroBanner } from '../../components/HeroBanner';
 import { CategoryPills } from '../../components/CategoryPills';
 import { ProductCard } from '../../components/ProductCard';
-import { ReviewCard } from '../../components/ReviewCard';
 import { fetchProducts } from '../../services/api';
 import { Sparkles, Search } from 'lucide-react';
-
-const REVIEWS = [
-  {
-    author: 'Julian Thorne',
-    location: 'Zurich, Switzerland',
-    item: 'ChronoMaster Watch',
-    rating: 5,
-    title: 'Remarkable horological craftsmanship',
-    comment:
-      'The weight, brushed steel finishing, and sapphire clarity rival timepieces five times its price point. Dispatched seamlessly and arrived in Zurich in under 5 days.',
-  },
-  {
-    author: 'Camilla Dupont',
-    location: 'Paris, France',
-    item: 'The Sovereign Weekender',
-    rating: 5,
-    title: 'Exquisite vegetable-tanned leather',
-    comment:
-      'The leather aroma and rich grain patina are pure atelier quality. The isolated shoe compartment makes weekend travel to the Riviera effortless.',
-  },
-  {
-    author: 'Marcus Sterling',
-    location: 'London, UK',
-    item: 'Sonus Pure ANC Headphones',
-    rating: 5,
-    title: 'Studio acoustic reproduction',
-    comment:
-      'Pristine sound separation and the lambskin cups are unbelievably comfortable for long flights. Checkout was instantaneous.',
-  },
-];
 
 export const Home = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('popular');
@@ -48,6 +18,7 @@ export const Home = () => {
     let isMounted = true;
     async function loadData() {
       setLoading(true);
+      setCatalogError('');
       try {
         const res = await fetchProducts({
           category: activeCategory === 'All' ? '' : activeCategory,
@@ -58,6 +29,7 @@ export const Home = () => {
         }
       } catch (e) {
         console.error('Failed to load products', e);
+        if (isMounted) setCatalogError(e.message || 'Could not load products from CJ.');
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -86,10 +58,10 @@ export const Home = () => {
           <div>
             <div className="flex items-center space-x-2 text-stone-500 text-xs font-semibold uppercase tracking-widest mb-1.5">
               <span className="w-2 h-2 rounded-full bg-stone-900"></span>
-              <span>Curated Atelier Collection</span>
+              <span>Live CJ Catalog</span>
             </div>
             <h2 className="font-serif text-3xl sm:text-4xl text-stone-900 tracking-tight">
-              Featured Luxury Pieces
+              Products
             </h2>
           </div>
 
@@ -146,10 +118,15 @@ export const Home = () => {
               </div>
             ))}
           </div>
+        ) : catalogError ? (
+          <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-rose-200">
+            <h3 className="font-serif text-xl text-stone-800 mb-2">CJ products could not be loaded</h3>
+            <p className="text-xs text-rose-700">{catalogError}</p>
+          </div>
         ) : sortedProducts.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-stone-300">
-            <h3 className="font-serif text-xl text-stone-800 mb-2">No matching pieces found</h3>
-            <p className="text-xs text-stone-500 mb-6">Try adjusting your search criteria or clear active category filters.</p>
+            <h3 className="font-serif text-xl text-stone-800 mb-2">No CJ products found</h3>
+            <p className="text-xs text-stone-500 mb-6">There are no products to show for this search.</p>
             <button
               onClick={() => {
                 setActiveCategory('All');
@@ -176,60 +153,35 @@ export const Home = () => {
             <div className="space-y-6">
               <span className="text-amber-400 text-xs font-semibold uppercase tracking-widest flex items-center space-x-2">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>The Direct Atelier Model</span>
+              <span>Shipping and checkout</span>
               </span>
               <h2 className="font-serif text-3xl sm:text-5xl font-normal leading-tight text-white">
-                Eliminating middlemen. <br />
-                <span className="italic text-stone-400">Preserving uncompromising value.</span>
+                Free products. <br />
+                <span className="italic text-stone-400">One shipping fee per order.</span>
               </h2>
               <p className="text-stone-300 text-xs sm:text-sm leading-relaxed font-light">
-                Traditional luxury houses mark up goods heavily to offset retail flagships and campaigns. We route orders directly from specialist master workshops to your residence with white-glove courier handling.
+                Product prices are set to zero. The current store shipping fee is added once at checkout and can be changed by the administrator.
               </p>
               <div className="grid grid-cols-2 gap-6 pt-4 border-t border-stone-800 text-xs">
                 <div>
-                  <h4 className="font-semibold text-white uppercase tracking-wider">Direct Origin Dispatch</h4>
-                  <p className="text-stone-400 mt-1">Real-time inventory verification and tracked customs clearance.</p>
+                  <h4 className="font-semibold text-white uppercase tracking-wider">CJ catalog</h4>
+                  <p className="text-stone-400 mt-1">Only items returned by the live CJ API appear in the catalog.</p>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-white uppercase tracking-wider">Encrypted Settlement</h4>
-                  <p className="text-stone-400 mt-1">Frictionless authorization with 256-bit bank-grade protection.</p>
+                  <h4 className="font-semibold text-white uppercase tracking-wider">Payment review</h4>
+                  <p className="text-stone-400 mt-1">An administrator verifies Whop payment before sending an order to CJ.</p>
                 </div>
               </div>
             </div>
 
-            <div className="relative">
-              <div className="aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl border border-stone-800">
-                <img
-                  src="https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=1200&q=80"
-                  alt="Leather Craftsmanship"
-                  className="w-full h-full object-cover object-center"
-                />
-              </div>
+            <div className="rounded-3xl border border-stone-700 bg-stone-800/60 p-8 sm:p-12">
+              <p className="text-xs uppercase tracking-widest text-stone-400">Order flow</p>
+              <p className="font-serif text-2xl text-white mt-3">Choose a CJ item, pay the displayed shipping fee, then complete checkout.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Customer Reviews Section */}
-      <section id="bestsellers" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
-        <div className="text-center max-w-xl mx-auto mb-14">
-          <span className="text-xs font-semibold uppercase tracking-widest text-stone-400">
-            Client Testimonials
-          </span>
-          <h2 className="font-serif text-3xl sm:text-4xl text-stone-900 mt-1.5">
-            Endorsed by Discerning Connoisseurs
-          </h2>
-          <p className="text-stone-500 text-xs sm:text-sm mt-3 leading-relaxed">
-            Over 12,000 satisfied collectors worldwide enjoy our bespoke luxury goods.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-          {REVIEWS.map((review, idx) => (
-            <ReviewCard key={idx} review={review} />
-          ))}
-        </div>
-      </section>
     </div>
   );
 };

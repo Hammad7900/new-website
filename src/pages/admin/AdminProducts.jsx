@@ -7,6 +7,7 @@ import {
   Search,
   ExternalLink,
   CheckCircle2,
+  AlertCircle,
   Sparkles,
 } from 'lucide-react';
 
@@ -20,8 +21,12 @@ export const AdminProducts = () => {
   const [search, setSearch] = useState('');
   const [cjKeyword, setCjKeyword] = useState('');
   const [syncMessage, setSyncMessage] = useState(null);
+  const [catalogStatus, setCatalogStatus] = useState('loading');
+  const [catalogError, setCatalogError] = useState('');
 
   const loadCatalog = async (keywordToSearch = '', isManualSync = false) => {
+    setCatalogStatus('loading');
+    setCatalogError('');
     if (isManualSync) setRefreshing(true);
     else setLoading(true);
 
@@ -35,6 +40,11 @@ export const AdminProducts = () => {
 
       if (res && res.data) {
         setProducts(res.data);
+        setCatalogStatus('connected');
+      } else {
+        setProducts([]);
+        setCatalogStatus('error');
+        setCatalogError('CJ returned an unexpected response.');
       }
 
       if (isManualSync || keywordToSearch) {
@@ -45,12 +55,10 @@ export const AdminProducts = () => {
         setTimeout(() => setSyncMessage(null), 5000);
       }
     } catch (e) {
-      if (isManualSync) {
-        setSyncMessage({
-          type: 'error',
-          text: `Sync error: ${e.message}`,
-        });
-      }
+      setProducts([]);
+      setCatalogStatus('error');
+      setCatalogError(e.message || 'Could not connect to CJ.');
+      setSyncMessage({ type: 'error', text: `CJ API error: ${e.message}` });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -74,19 +82,17 @@ export const AdminProducts = () => {
       {/* Connection Status Banner */}
       <div className="bg-white border border-stone-200/90 rounded-2xl p-5 mb-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-3.5">
-          <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-5 h-5" />
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${catalogStatus === 'connected' ? 'bg-emerald-50 text-emerald-600' : catalogStatus === 'error' ? 'bg-rose-50 text-rose-600' : 'bg-stone-100 text-stone-500'}`}>
+            {catalogStatus === 'connected' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
           </div>
           <div>
             <div className="flex items-center space-x-2">
               <h3 className="font-semibold text-stone-900 text-sm">CJ Dropshipping Product Search</h3>
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded-full">
-                Server API
+                {catalogStatus === 'loading' ? 'Connecting…' : catalogStatus === 'connected' ? 'Connected' : 'Connection error'}
               </span>
             </div>
-            <p className="text-xs text-stone-500 mt-0.5">
-              Live Factory Inventory Sync • Wholesale Cost Optimization • Real-Time Order Routing
-            </p>
+            <p className="text-xs text-stone-500 mt-0.5">Live catalog results returned by your connected CJ account.</p>
           </div>
         </div>
 
@@ -126,7 +132,7 @@ export const AdminProducts = () => {
             Search & Import Products Directly
           </h3>
           <p className="text-stone-300 text-xs font-light mb-4">
-            Type any product keyword to query warehouse inventory in real time. Products will load with real factory images, wholesale cost, live inventory, and retail pricing.
+            Search the connected CJ catalog. Store product prices are currently free; customers pay the shipping fee shown at checkout.
           </p>
 
           <form onSubmit={handleCjSearch} className="flex gap-2">
@@ -215,7 +221,7 @@ export const AdminProducts = () => {
           </div>
         ) : products.length === 0 ? (
           <div className="py-16 text-center text-xs text-stone-400">
-            No products returned. Click any of the queries above or search for "watch", "leather", or "lamp".
+            {catalogStatus === 'error' ? `CJ product request failed: ${catalogError}` : 'CJ returned no products for this search. Try another keyword.'}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -225,7 +231,7 @@ export const AdminProducts = () => {
                   <th className="py-3.5 px-5">Product</th>
                   <th className="py-3.5 px-4">SKU / Ref</th>
                   <th className="py-3.5 px-4">Category</th>
-                  <th className="py-3.5 px-4">Retail Price</th>
+                  <th className="py-3.5 px-4">Store Price</th>
                   <th className="py-3.5 px-4">Warehouse Stock</th>
                   <th className="py-3.5 px-4">Variants</th>
                   <th className="py-3.5 px-5 text-right">Storefront</th>
@@ -248,11 +254,7 @@ export const AdminProducts = () => {
                       <tr key={prod.id} className="hover:bg-stone-50/70 transition-colors">
                         <td className="py-4 px-5 max-w-xs sm:max-w-md">
                           <div className="flex items-center space-x-3.5">
-                            <img
-                              src={image}
-                              alt={prod.name}
-                              className="w-12 h-12 rounded-xl object-cover bg-stone-100 border border-stone-200/60 shrink-0"
-                            />
+                            {image ? <img src={image} alt={prod.name} className="w-12 h-12 rounded-xl object-cover bg-stone-100 border border-stone-200/60 shrink-0" /> : <div className="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200/60 shrink-0" aria-label="No product image" />}
                             <div className="min-w-0">
                               <div className="font-semibold text-stone-900 text-xs line-clamp-1">
                                 {prod.name}
@@ -275,7 +277,7 @@ export const AdminProducts = () => {
                         </td>
 
                         <td className="py-4 px-4 font-semibold text-stone-900 text-sm whitespace-nowrap">
-                          ${prod.price.toFixed(2)}
+                          FREE
                         </td>
 
                         <td className="py-4 px-4 whitespace-nowrap">
@@ -286,16 +288,16 @@ export const AdminProducts = () => {
                               }`}
                             ></span>
                             <span className={`font-semibold ${isLowStock ? 'text-amber-700' : 'text-stone-900'}`}>
-                              {prod.stock ? prod.stock.toLocaleString() : '150'} units
+                              {Number.isFinite(prod.stock) ? `${prod.stock.toLocaleString()} units` : 'Not provided'}
                             </span>
                           </div>
                           <div className="text-[10px] text-stone-400 mt-0.5">
-                            Verified Warehouse
+                            CJ reported inventory
                           </div>
                         </td>
 
                         <td className="py-4 px-4 text-stone-600 whitespace-nowrap">
-                          {prod.variants?.length ? `${prod.variants.length} option(s)` : 'Standard'}
+                          {prod.variants?.length ? `${prod.variants.length} option(s)` : 'No variants returned'}
                         </td>
 
                         <td className="py-4 px-5 text-right whitespace-nowrap">

@@ -19,7 +19,7 @@ export const ProductCard = ({ product }) => {
 
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
-          {product.stock && product.stock <= 10 && (
+            {Number.isFinite(product.stock) && product.stock > 0 && product.stock <= 10 && (
             <span className="bg-amber-600/90 text-white text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full shadow-sm backdrop-blur-xs">
               Only {product.stock} Left
             </span>
@@ -42,7 +42,7 @@ export const ProductCard = ({ product }) => {
         {/* Category & Rating */}
         <div className="flex items-center justify-between text-xs text-stone-500 mb-1.5">
           <span className="uppercase tracking-widest text-[10px] font-semibold text-stone-400">
-            {product.category || 'Atelier'}
+            {product.category || 'CJ Product'}
           </span>
           <span className="text-[10px] text-stone-400">{product.stock ? `${product.stock} in stock` : 'Availability on request'}</span>
         </div>
@@ -57,7 +57,7 @@ export const ProductCard = ({ product }) => {
         {/* SKU & Price */}
         <div className="mt-3 pt-3 border-t border-stone-100 flex items-center justify-between">
           <span className="text-[11px] font-mono text-stone-400">
-            {product.sku ? product.sku.split('-').slice(0, 3).join('-') : 'CJ-AURA'}
+            {product.sku || 'SKU unavailable'}
           </span>
           <div className="flex items-baseline space-x-2">
             {product.compareAtPrice && product.compareAtPrice > product.price && (

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
-import { WHOP_PLAN_ID } from '../../config/api';
+import { WHOP_CHECKOUT_URL } from '../../config/api';
 import { WhopCheckoutEmbed } from '../../components/WhopCheckoutEmbed';
 import { Shield, Lock, CheckCircle2, ArrowRight, ShoppingBag } from 'lucide-react';
 
@@ -267,7 +267,7 @@ export const Checkout = () => {
                 </p>
 
                 <WhopCheckoutEmbed
-                  planId={WHOP_PLAN_ID}
+                  checkoutUrl={WHOP_CHECKOUT_URL}
                   total={total}
                   onComplete={handlePaymentComplete}
                 />

@@ -150,7 +150,7 @@ export const AdminDashboard = () => {
           <div>
             <span className="text-stone-400 text-[10px] uppercase font-bold tracking-widest block">Sync Engine</span>
             <h4 className="font-serif text-lg font-medium text-stone-900 mt-0.5">Synchronize Products</h4>
-            <p className="text-xs text-stone-500 mt-1">Query live warehouse inventory & prices.</p>
+            <p className="text-xs text-stone-500 mt-1">Query products currently returned by CJ.</p>
           </div>
           <ShoppingBag className="w-5 h-5 text-stone-700" />
         </Link>
@@ -225,12 +225,12 @@ export const AdminDashboard = () => {
                       {ord.status === 'PLACED_ON_CJ' || ord.status === 'DISPATCHED' ? (
                         <span className="inline-flex items-center text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
                           <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Dispatched ({ord.cjOrderId || 'Active'})
+                          CJ order created ({ord.cjOrderId || 'Waiting for CJ'})
                         </span>
                       ) : (
                         <span className="inline-flex items-center text-[10px] font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full">
                           <Clock className="w-3 h-3 mr-1" />
-                          Paid (Needs Dispatch)
+                          {ord.status === 'PAYMENT_REVIEW' ? 'Payment needs verification' : 'Payment verified · ready for CJ'}
                         </span>
                       )}
                     </td>

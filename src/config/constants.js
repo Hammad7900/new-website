@@ -13,7 +13,7 @@ export const PRICING = {
   retailMultiplier: 0,
   compareMultiplier: 1.4,
   minRetailPrice: 0,
-  shippingCost: 12.99,
+  shippingCost: 1.00,
 };
 
 export const DEFAULT_SEARCH_KEYWORD = '';

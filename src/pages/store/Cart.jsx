@@ -98,9 +98,7 @@ export const Cart = () => {
                     {item.name}
                   </h3>
                   <div className="text-xs text-stone-500 mt-0.5">
-                    {item.variant && item.variant !== 'Standard'
-                      ? item.variant
-                      : 'Standard Edition'}
+                    {item.variant || 'Variant not specified'}
                   </div>
                   <div className="text-xs font-mono text-stone-400 mt-0.5">
                     SKU: {item.sku}
