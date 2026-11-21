@@ -4,3 +4,12 @@
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
+
+<IfModule mod_authz_core.c>
+  <Files "config.php">
+    Require all denied
+  </Files>
+  <FilesMatch "^\.cj_token_">
+    Require all denied
+  </FilesMatch>
+</IfModule>

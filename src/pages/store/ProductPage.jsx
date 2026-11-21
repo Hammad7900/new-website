@@ -50,6 +50,7 @@ export const ProductPage = () => {
 
   const handleAddToCart = () => {
     if (!product) return;
+    if (!selectedVariant?.vid) return;
     addToCart(product, quantity, selectedVariant);
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2500);
@@ -85,7 +86,7 @@ export const ProductPage = () => {
   }
 
   const images = (product.images || []).filter(Boolean);
-  const price = selectedVariant?.price || product.price;
+  const price = selectedVariant?.price ?? product.price;
 
   return (
     <div className="min-h-screen bg-[#faf8f5]">
@@ -167,13 +168,13 @@ export const ProductPage = () => {
               <h1 className="font-serif text-3xl sm:text-4xl text-stone-900 mt-2 leading-tight">
                 {product.name}
               </h1>
-              <div className="flex items-center space-x-3 mt-3">
+              {product.rating > 0 && product.reviewsCount > 0 && <div className="flex items-center space-x-3 mt-3">
                 <div className="flex items-center space-x-1">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
                       className={`w-4 h-4 ${
-                        i < Math.floor(product.rating || 4.8)
+                          i < Math.floor(product.rating)
                           ? 'text-amber-400 fill-amber-400'
                           : 'text-stone-200'
                       }`}
@@ -181,14 +182,14 @@ export const ProductPage = () => {
                   ))}
                 </div>
                 <span className="text-xs text-stone-500">
-                  ({product.reviewsCount || 42} reviews)
+                  ({product.reviewsCount} reviews)
                 </span>
-              </div>
+              </div>}
             </div>
 
             <div className="flex items-center space-x-4">
               <span className="font-serif text-4xl text-stone-900">
-                ${price.toFixed(2)}
+                {price === 0 ? 'FREE' : `$${price.toFixed(2)}`}
               </span>
               {product.compareAtPrice && product.compareAtPrice > price && (
                 <span className="text-lg text-stone-400 line-through">
@@ -269,10 +270,11 @@ export const ProductPage = () => {
               <button
                 type="button"
                 onClick={handleAddToCart}
+                disabled={!selectedVariant?.vid}
                 className={`flex-1 py-4 px-6 rounded-2xl font-semibold text-sm uppercase tracking-wider transition-all shadow-md flex items-center justify-center space-x-2 ${
                   addedToCart
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-stone-900 hover:bg-black text-white'
+                    : selectedVariant?.vid ? 'bg-stone-900 hover:bg-black text-white' : 'bg-stone-300 text-stone-600 cursor-not-allowed'
                 }`}
               >
                 {addedToCart ? (
@@ -283,7 +285,7 @@ export const ProductPage = () => {
                 ) : (
                   <>
                     <ShoppingBag className="w-5 h-5" />
-                    <span>Add to Cart</span>
+                    <span>{selectedVariant?.vid ? 'Add to Cart' : 'Not orderable'}</span>
                   </>
                 )}
               </button>
@@ -299,7 +301,7 @@ export const ProductPage = () => {
             <div className="grid grid-cols-3 gap-3 pt-4 border-t border-stone-100">
               {[
                 { Icon: Shield, label: 'Secure Checkout' },
-                { Icon: Truck, label: 'Free Shipping +$150' },
+                { Icon: Truck, label: 'Shipping fee shown at checkout' },
                 { Icon: Award, label: 'Quality Assured' },
               ].map(({ Icon, label }) => (
                 <div

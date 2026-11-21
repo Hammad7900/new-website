@@ -1,30 +1,21 @@
 // src/components/ProductCard.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Star, ShoppingBag, Eye } from 'lucide-react';
-import { useCart } from '../context/CartContext';
+import { ExternalLink } from 'lucide-react';
 
 export const ProductCard = ({ product }) => {
-  const { addToCart } = useCart();
-  const image = (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80';
-
-  const handleQuickAdd = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const defaultVariant = product.variants && product.variants.length > 0 ? product.variants[0] : null;
-    addToCart(product, 1, defaultVariant);
-  };
+  const image = (product.images && product.images[0]) || '';
 
   return (
     <div className="group relative flex flex-col bg-white border border-stone-200/80 rounded-2xl overflow-hidden hover:shadow-xl hover:border-stone-300 transition-all duration-300">
       {/* Product Image Area */}
       <Link to={`/product/${product.id}`} className="relative aspect-square w-full overflow-hidden bg-stone-100 block">
-        <img
+        {image && <img
           src={image}
           alt={product.name}
           className="h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
           loading="lazy"
-        />
+        />}
 
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
@@ -41,18 +32,8 @@ export const ProductCard = ({ product }) => {
         </div>
 
         {/* Quick Action Overlay */}
-        <div className="absolute inset-x-3 bottom-3 flex items-center gap-2 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 z-10">
-          <button
-            type="button"
-            onClick={handleQuickAdd}
-            className="flex-1 py-2.5 px-3 bg-stone-900/95 hover:bg-stone-900 text-white text-xs font-semibold rounded-xl flex items-center justify-center space-x-1.5 backdrop-blur-sm shadow-md transition-colors"
-          >
-            <ShoppingBag className="w-3.5 h-3.5" />
-            <span>Quick Add</span>
-          </button>
-          <div className="p-2.5 bg-white/95 hover:bg-white text-stone-900 rounded-xl backdrop-blur-sm shadow-md transition-colors">
-            <Eye className="w-4 h-4" />
-          </div>
+        <div className="absolute inset-x-3 bottom-3 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 z-10">
+          <span className="py-2.5 px-3 bg-stone-900/95 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 shadow-md"><span>View options</span><ExternalLink className="w-3.5 h-3.5" /></span>
         </div>
       </Link>
 
@@ -63,15 +44,7 @@ export const ProductCard = ({ product }) => {
           <span className="uppercase tracking-widest text-[10px] font-semibold text-stone-400">
             {product.category || 'Atelier'}
           </span>
-          <div className="flex items-center space-x-1">
-            <Star className="w-3.5 h-3.5 fill-gold-400 text-gold-400" />
-            <span className="text-[11px] font-medium text-stone-700">
-              {product.rating || '4.9'}
-            </span>
-            <span className="text-[10px] text-stone-400">
-              ({product.reviewsCount || 42})
-            </span>
-          </div>
+          <span className="text-[10px] text-stone-400">{product.stock ? `${product.stock} in stock` : 'Availability on request'}</span>
         </div>
 
         {/* Title */}
@@ -93,7 +66,7 @@ export const ProductCard = ({ product }) => {
               </span>
             )}
             <span className="font-semibold text-stone-900 text-sm sm:text-base">
-              ${product.price.toFixed(2)}
+              {product.price === 0 ? 'FREE' : `$${product.price.toFixed(2)}`}
             </span>
           </div>
         </div>

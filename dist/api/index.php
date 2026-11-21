@@ -1,13 +1,13 @@
 <?php
 /**
  * Hostinger PHP Backend for CJ Dropshipping API
- * Handles /api/cj-auth, /api/cj-products, and /api/cj-order
+ * Handles Hostinger PHP API routes for CJ products/orders, admin auth, and store settings.
  */
 
 // Allow CORS from any origin
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, CJ-Access-Token');
+header('Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, CJ-Access-Token, X-Admin-Password');
 header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -15,9 +15,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-$CJ_API_KEY = getenv('CJ_API_KEY') ?: 'CJ5799036@api@68240b5fc55f4b8db42e75c858c29b05';
+$configFile = __DIR__ . '/config.php';
+$appConfig = is_file($configFile) ? (require $configFile) : [];
+$CJ_API_KEY = getenv('CJ_API_KEY') ?: ($appConfig['cj_api_key'] ?? '');
+$ADMIN_PASSWORD = getenv('ADMIN_PASSWORD') ?: ($appConfig['admin_password'] ?? '');
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '';
 $endpoint = isset($_GET['endpoint']) ? $_GET['endpoint'] : '';
+
+function sendJson($status, $payload) {
+    http_response_code($status);
+    echo json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    exit();
+}
+
+function loadStoreState() {
+    $path = dirname(__DIR__) . '/.aura-store-data.json';
+    if (!is_file($path)) return ['shippingCost' => 12.99, 'coupons' => [], 'orders' => []];
+    $state = json_decode(@file_get_contents($path), true);
+    return is_array($state) ? array_merge(['shippingCost' => 12.99, 'coupons' => [], 'orders' => []], $state) : ['shippingCost' => 12.99, 'coupons' => [], 'orders' => []];
+}
+
+function saveStoreState($changes) {
+    $path = dirname(__DIR__) . '/.aura-store-data.json';
+    $lock = fopen($path . '.lock', 'c');
+    if (!$lock || !flock($lock, LOCK_EX)) throw new RuntimeException('Could not lock store settings.');
+    $state = loadStoreState();
+    $state = array_merge($state, $changes);
+    $ok = file_put_contents($path, json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    flock($lock, LOCK_UN);
+    fclose($lock);
+    if ($ok === false) throw new RuntimeException('Could not write store settings. Check PHP folder permissions.');
+    return $state;
+}
+
+function adminPasswordIsValid($expected) {
+    $provided = $_SERVER['HTTP_X_ADMIN_PASSWORD'] ?? '';
+    return $expected !== '' && $provided !== '' && hash_equals($expected, $provided);
+}
 
 // Robust HTTP POST helper with SSL compatibility for Hostinger
 function sendJsonPost($url, $data, $headers = []) {
@@ -32,8 +66,8 @@ function sendJsonPost($url, $data, $headers = []) {
                 'ignore_errors' => true,
             ],
             'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
+                'verify_peer' => true,
+                'verify_peer_name' => true,
             ]
         ];
         $ctx = stream_context_create($opts);
@@ -48,11 +82,11 @@ function sendJsonPost($url, $data, $headers = []) {
     $defaultHeaders = ['Content-Type: application/json'];
     curl_setopt($ch, CURLOPT_HTTPHEADER, array_merge($defaultHeaders, $headers));
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
     $response = curl_exec($ch);
     curl_close($ch);
-    return json_decode($response, true);
+        return is_string($response) ? json_decode($response, true) : null;
 }
 
 // Robust HTTP GET helper with SSL compatibility for Hostinger
@@ -66,8 +100,8 @@ function sendGet($url, $headers = []) {
                 'ignore_errors' => true,
             ],
             'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
+                'verify_peer' => true,
+                'verify_peer_name' => true,
             ]
         ];
         $ctx = stream_context_create($opts);
@@ -80,17 +114,19 @@ function sendGet($url, $headers = []) {
     $defaultHeaders = ['Content-Type: application/json'];
     curl_setopt($ch, CURLOPT_HTTPHEADER, array_merge($defaultHeaders, $headers));
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
     $response = curl_exec($ch);
     curl_close($ch);
-    return json_decode($response, true);
+    return is_string($response) ? json_decode($response, true) : null;
 }
 
 // Access Token Getter with dual-location caching (temp dir or local dir)
 function getAccessToken($apiKey) {
-    $tempFile = sys_get_temp_dir() . '/cj_token_cache.json';
-    $localFile = __DIR__ . '/.cj_token_cache.json';
+    if (!$apiKey) return null;
+    $cacheId = hash('sha256', $apiKey);
+    $tempFile = sys_get_temp_dir() . '/aura_cj_token_' . $cacheId . '.json';
+    $localFile = __DIR__ . '/.cj_token_' . $cacheId . '.json';
     $cacheFile = is_writable(sys_get_temp_dir()) ? $tempFile : $localFile;
 
     if (file_exists($cacheFile)) {
@@ -114,15 +150,142 @@ function getAccessToken($apiKey) {
     return null;
 }
 
-// Route: /api/cj-auth
-if (strpos($uri, 'cj-auth') !== false || $endpoint === 'cj-auth') {
-    $token = getAccessToken($CJ_API_KEY);
-    echo json_encode([
-        'success' => !!$token,
-        'accessToken' => $token,
-        'source' => 'hostinger_php_backend'
-    ]);
-    exit();
+if (str_ends_with($uri, '/admin-auth')) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') sendJson(405, ['success' => false, 'error' => 'POST required.']);
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    if (!$ADMIN_PASSWORD || !isset($body['password']) || !hash_equals($ADMIN_PASSWORD, (string)$body['password'])) {
+        sendJson(401, ['success' => false, 'error' => 'Incorrect administrator password.']);
+    }
+    sendJson(200, ['success' => true]);
+}
+
+if (str_ends_with($uri, '/store-settings')) {
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        $state = loadStoreState();
+        sendJson(200, ['success' => true, 'shippingCost' => (float)$state['shippingCost']]);
+    }
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') sendJson(405, ['success' => false, 'error' => 'GET or POST required.']);
+    if (!adminPasswordIsValid($ADMIN_PASSWORD)) sendJson(401, ['success' => false, 'error' => 'Administrator authentication required.']);
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    $amount = filter_var($body['shippingCost'] ?? null, FILTER_VALIDATE_FLOAT);
+    if ($amount === false || $amount < 0 || $amount > 10000) sendJson(400, ['success' => false, 'error' => 'Shipping fee must be between 0 and 10000.']);
+    try {
+        $state = saveStoreState(['shippingCost' => round($amount, 2)]);
+        sendJson(200, ['success' => true, 'shippingCost' => (float)$state['shippingCost']]);
+    } catch (Throwable $error) {
+        sendJson(500, ['success' => false, 'error' => $error->getMessage()]);
+    }
+}
+
+if (str_ends_with($uri, '/coupons')) {
+    if (!adminPasswordIsValid($ADMIN_PASSWORD)) sendJson(401, ['success' => false, 'error' => 'Administrator authentication required.']);
+    $state = loadStoreState();
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') sendJson(200, ['success' => true, 'coupons' => $state['coupons']]);
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        $code = strtoupper(trim((string)($body['code'] ?? '')));
+        $type = $body['type'] ?? '';
+        $value = filter_var($body['value'] ?? null, FILTER_VALIDATE_FLOAT);
+        $expiry = trim((string)($body['expiry'] ?? ''));
+        if (!preg_match('/^[A-Z0-9_-]{2,20}$/', $code) || !in_array($type, ['percentage', 'fixed'], true) || $value === false || $value <= 0 || ($type === 'percentage' && $value > 100) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $expiry)) {
+            sendJson(400, ['success' => false, 'error' => 'Enter a valid code, discount, type, and expiry date.']);
+        }
+        foreach ($state['coupons'] as $coupon) if (strtoupper($coupon['code'] ?? '') === $code) sendJson(409, ['success' => false, 'error' => 'A coupon with this code already exists.']);
+        $coupon = ['code' => $code, 'type' => $type, 'value' => (float)$value, 'expiry' => $expiry, 'createdAt' => gmdate('c')];
+        $state = saveStoreState(['coupons' => array_merge($state['coupons'], [$coupon])]);
+        sendJson(200, ['success' => true, 'coupons' => $state['coupons']]);
+    }
+    if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+        $code = strtoupper(trim((string)($_GET['code'] ?? '')));
+        $coupons = array_values(array_filter($state['coupons'], function($coupon) use ($code) { return strtoupper($coupon['code'] ?? '') !== $code; }));
+        $state = saveStoreState(['coupons' => $coupons]);
+        sendJson(200, ['success' => true, 'coupons' => $state['coupons']]);
+    }
+    sendJson(405, ['success' => false, 'error' => 'GET, POST, or DELETE required.']);
+}
+
+if (str_ends_with($uri, '/coupon-validate') && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    $code = strtoupper(trim((string)($body['code'] ?? '')));
+    $subtotal = max(0, (float)($body['subtotal'] ?? 0));
+    $state = loadStoreState();
+    $coupon = null;
+    foreach ($state['coupons'] as $stored) if (strtoupper($stored['code'] ?? '') === $code) { $coupon = $stored; break; }
+    if (!$coupon) sendJson(200, ['success' => false, 'error' => 'Invalid coupon code.']);
+    if (strtotime(($coupon['expiry'] ?? '') . ' 23:59:59 UTC') < time()) sendJson(200, ['success' => false, 'error' => 'This coupon has expired.']);
+    $discount = ($coupon['type'] ?? '') === 'percentage' ? round($subtotal * ((float)$coupon['value']) / 100, 2) : min($subtotal, (float)$coupon['value']);
+    sendJson(200, ['success' => true, 'coupon' => $coupon, 'discount' => $discount]);
+}
+
+if (str_ends_with($uri, '/orders')) {
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        if (!adminPasswordIsValid($ADMIN_PASSWORD)) sendJson(401, ['success' => false, 'error' => 'Administrator authentication required.']);
+        $state = loadStoreState();
+        sendJson(200, ['success' => true, 'orders' => $state['orders']]);
+    }
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        $customer = $body['customer'] ?? [];
+        $address = $body['shippingAddress'] ?? [];
+        $items = $body['items'] ?? [];
+        if (empty($customer['name']) || empty($customer['email']) || empty($address['street']) || empty($address['city']) || empty($address['country']) || !is_array($items) || count($items) === 0) {
+            sendJson(400, ['success' => false, 'error' => 'Customer, shipping details, and order items are required.']);
+        }
+        foreach ($items as $item) {
+            if (empty($item['vid']) || (int)($item['quantity'] ?? 0) < 1) sendJson(400, ['success' => false, 'error' => 'Each order item needs a CJ variant and positive quantity.']);
+        }
+        $state = loadStoreState();
+        $shipping = (float)$state['shippingCost'];
+        $couponCode = strtoupper(trim((string)($body['couponCode'] ?? '')));
+        $discount = 0.0;
+        if ($couponCode !== '') {
+            foreach ($state['coupons'] as $savedCoupon) {
+                if (strtoupper($savedCoupon['code'] ?? '') === $couponCode && strtotime(($savedCoupon['expiry'] ?? '') . ' 23:59:59 UTC') >= time()) {
+                    $discount = ($savedCoupon['type'] ?? '') === 'percentage'
+                        ? round(0 * ((float)$savedCoupon['value']) / 100, 2)
+                        : 0.0;
+                    break;
+                }
+            }
+        }
+        $order = [
+            'id' => 'ORD-' . strtoupper(bin2hex(random_bytes(5))),
+            'createdAt' => gmdate('c'),
+            'status' => 'PAYMENT_REVIEW',
+            'customer' => $customer,
+            'shippingAddress' => $address,
+            'items' => $items,
+            'subtotal' => 0,
+            'shipping' => $shipping,
+            'discountAmount' => $discount,
+            'total' => $shipping,
+            'couponCode' => $couponCode ?: null,
+            'paymentMethod' => $body['paymentMethod'] ?? 'Whop (awaiting manual verification)',
+        ];
+        $state = saveStoreState(['orders' => array_merge([$order], $state['orders'])]);
+        sendJson(201, ['success' => true, 'order' => $order]);
+    }
+    if ($_SERVER['REQUEST_METHOD'] === 'PATCH') {
+        if (!adminPasswordIsValid($ADMIN_PASSWORD)) sendJson(401, ['success' => false, 'error' => 'Administrator authentication required.']);
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        $allowed = ['PAYMENT_REVIEW', 'PAID', 'PLACED_ON_CJ', 'DISPATCHED'];
+        if (empty($body['id']) || !in_array($body['status'] ?? '', $allowed, true)) sendJson(400, ['success' => false, 'error' => 'Invalid order status update.']);
+        $state = loadStoreState();
+        $found = false;
+        foreach ($state['orders'] as &$order) {
+            if ($order['id'] === $body['id']) {
+                $order['status'] = $body['status'];
+                if (!empty($body['cjOrderId'])) $order['cjOrderId'] = $body['cjOrderId'];
+                $found = true;
+                break;
+            }
+        }
+        unset($order);
+        if (!$found) sendJson(404, ['success' => false, 'error' => 'Order not found.']);
+        $state = saveStoreState(['orders' => $state['orders']]);
+        sendJson(200, ['success' => true, 'orders' => $state['orders']]);
+    }
+    sendJson(405, ['success' => false, 'error' => 'GET, POST, or PATCH required.']);
 }
 
 // Route: /api/cj-products
@@ -146,9 +309,8 @@ if (strpos($uri, 'cj-products') !== false || $endpoint === 'cj-products') {
         ]);
         if ($detailRes && isset($detailRes['data'])) {
             $item = $detailRes['data'];
-            $cost = (float)($item['sellPrice'] ?? 10);
-            $retailPrice = round(max(25, $cost * 2.5), 2);
-            $comparePrice = round($retailPrice * 1.4, 2);
+            $retailPrice = 0;
+            $comparePrice = 0;
 
             $mappedSingle = [
                 'id' => $item['pid'] ?? $productId,
@@ -159,40 +321,45 @@ if (strpos($uri, 'cj-products') !== false || $endpoint === 'cj-products') {
                 'description' => $item['description'] ?? $item['productNameEn'] ?? 'Curated premium item.',
                 'category' => $item['categoryName'] ?? 'Curated',
                 'sku' => $item['productSku'] ?? ('CJ-' . $productId),
-                'stock' => 100,
-                'rating' => 4.9,
-                'reviewsCount' => 45,
-                'variants' => array_map(function($v) use ($retailPrice) {
+                'stock' => 0,
+                'rating' => 0,
+                'reviewsCount' => 0,
+                'variants' => array_values(array_map(function($v) use ($retailPrice) {
+                    $inventory = array_sum(array_map(function($inventory) {
+                        return (int)($inventory['totalInventory'] ?? 0);
+                    }, $v['inventories'] ?? []));
                     return [
-                        'vid' => $v['vid'] ?? $v['variantSku'] ?? 'VID-DEF',
-                        'name' => $v['variantKeyEn'] ?? $v['variantName'] ?? 'Standard Edition',
-                        'sku' => $v['variantSku'] ?? 'SKU-DEF',
+                        'vid' => $v['vid'] ?? '',
+                        'name' => $v['variantNameEn'] ?? $v['variantKeyEn'] ?? $v['variantKey'] ?? $v['variantName'] ?? 'Standard Edition',
+                        'sku' => $v['variantSku'] ?? '',
                         'price' => $retailPrice,
-                        'stock' => 50
+                        'stock' => $inventory
                     ];
-                }, $item['variants'] ?? [])
+                }, array_filter($item['variants'] ?? [], function($variant) { return !empty($variant['vid']); })))
             ];
 
             echo json_encode(['success' => true, 'data' => [$mappedSingle], 'source' => 'cj_live_php_detail']);
             exit();
         }
+        sendJson(404, ['success' => false, 'error' => $detailRes['message'] ?? 'CJ product was not found.']);
     }
 
-    // Default keyword 'watch' guarantees CJ always returns items (instead of empty productList)
-    $keyword = $search ?: ($category && $category !== 'All' ? $category : 'watch');
-    $cjUrl = 'https://developers.cjdropshipping.com/api2.0/v1/product/listV2?pageNum=' . $pageNum . '&pageSize=' . $pageSize;
+    $keyword = $search ?: ($category && $category !== 'All' ? $category : '');
+    $cjUrl = 'https://developers.cjdropshipping.com/api2.0/v1/product/listV2?page=' . max(1, $pageNum) . '&size=' . min(100, max(1, $pageSize));
     if ($keyword) {
         $cjUrl .= '&keyWord=' . urlencode($keyword);
     }
 
     $listRes = sendGet($cjUrl, ['CJ-Access-Token: ' . $token]);
-    $rawList = $listRes['data']['content'][0]['productList'] ?? $listRes['data']['list'] ?? [];
+    if (!$listRes || (int)($listRes['code'] ?? 0) !== 200) {
+        sendJson(502, ['success' => false, 'error' => $listRes['message'] ?? 'CJ product search failed.', 'requestId' => $listRes['requestId'] ?? null]);
+    }
+    $rawList = $listRes['data']['content'][0]['productList'] ?? $listRes['data']['list'] ?? $listRes['data']['productList'] ?? [];
 
     $mapped = [];
     foreach ($rawList as $p) {
-        $cost = (float)($p['sellPrice'] ?? 10);
-        $retail = round(max(25, $cost * 2.5), 2);
-        $compare = round($retail * 1.4, 2);
+        $retail = 0;
+        $compare = 0;
         $mapped[] = [
             'id' => $p['id'],
             'name' => $p['nameEn'] ?? $p['productNameEn'] ?? 'Luxury Atelier Item',
@@ -202,18 +369,10 @@ if (strpos($uri, 'cj-products') !== false || $endpoint === 'cj-products') {
             'description' => 'Direct from vetted master workshops. High-precision materials and verified priority courier dispatch.',
             'category' => $p['threeCategoryName'] ?? $p['twoCategoryName'] ?? ($keyword ?: 'Curated'),
             'sku' => $p['sku'] ?? ('REF-' . $p['id']),
-            'stock' => (int)($p['warehouseInventoryNum'] ?? 100),
-            'rating' => 4.8,
-            'reviewsCount' => rand(25, 120),
-            'variants' => [
-                [
-                    'vid' => 'VID-' . ($p['sku'] ?? 'A'),
-                    'name' => 'Standard Edition',
-                    'sku' => $p['sku'] ?? '',
-                    'price' => $retail,
-                    'stock' => (int)($p['warehouseInventoryNum'] ?? 100)
-                ]
-            ]
+            'stock' => (int)($p['warehouseInventoryNum'] ?? 0),
+            'rating' => 0,
+            'reviewsCount' => 0,
+            'variants' => []
         ];
     }
 
@@ -228,27 +387,62 @@ if (strpos($uri, 'cj-products') !== false || $endpoint === 'cj-products') {
 
 // Route: /api/cj-order
 if ((strpos($uri, 'cj-order') !== false || $endpoint === 'cj-order') && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!adminPasswordIsValid($ADMIN_PASSWORD)) sendJson(401, ['success' => false, 'error' => 'Administrator authentication required.']);
     $token = getAccessToken($CJ_API_KEY);
     $payload = json_decode(file_get_contents('php://input'), true) ?: [];
 
+    $customer = $payload['customer'] ?? [];
+    $address = $payload['shippingAddress'] ?? [];
+    $items = $payload['items'] ?? [];
+    if (!$token) sendJson(503, ['success' => false, 'error' => 'CJ authentication failed. Check server credentials.']);
+    $state = loadStoreState();
+    $storedOrder = null;
+    foreach ($state['orders'] as $savedOrder) if (($savedOrder['id'] ?? '') === ($payload['orderId'] ?? '')) { $storedOrder = $savedOrder; break; }
+    if (!$storedOrder || ($storedOrder['status'] ?? '') !== 'PAID') sendJson(409, ['success' => false, 'error' => 'Order must be saved and payment verified before dispatch.']);
+    if (empty($customer['name']) || empty($customer['phone']) || empty($address['street']) || empty($address['city']) || empty($address['country']) || empty($address['zip']) || !is_array($items) || count($items) === 0) {
+        sendJson(400, ['success' => false, 'error' => 'Complete shipping details and at least one product are required.']);
+    }
+    foreach ($items as $item) {
+        if (empty($item['vid']) || (int)($item['quantity'] ?? 0) < 1) {
+            sendJson(400, ['success' => false, 'error' => 'Every order item needs a valid CJ variant ID and quantity.']);
+        }
+    }
+
+    // CJ requires an available logistics name. Quote from CJ using the variant IDs,
+    // then pass the cheapest available method unchanged to createOrderV2.
+    $freightRes = sendJsonPost('https://developers.cjdropshipping.com/api2.0/v1/logistic/freightCalculate', [
+        'startCountryCode' => strtoupper($appConfig['cj_start_country_code'] ?? 'CN'),
+        'endCountryCode' => strtoupper($address['countryCode'] ?? ''),
+        'zip' => $address['zip'],
+        'products' => array_map(function($it) { return ['vid' => $it['vid'], 'quantity' => (int)$it['quantity']]; }, $items)
+    ], ['CJ-Access-Token: ' . $token]);
+    $freightOptions = $freightRes['data'] ?? [];
+    if (empty($freightRes['result']) || !is_array($freightOptions) || count($freightOptions) === 0) {
+        sendJson(502, ['success' => false, 'error' => $freightRes['message'] ?? 'CJ has no shipping method for this destination.', 'requestId' => $freightRes['requestId'] ?? null]);
+    }
+    usort($freightOptions, function($a, $b) { return (float)($a['logisticPrice'] ?? INF) <=> (float)($b['logisticPrice'] ?? INF); });
+    $logisticName = $freightOptions[0]['logisticName'] ?? '';
+    if ($logisticName === '') sendJson(502, ['success' => false, 'error' => 'CJ freight quote did not include a shipping method.']);
+
     $orderPayload = [
         'orderNumber' => $payload['orderId'] ?? ('ORD-' . time()),
-        'shippingZip' => $payload['shippingAddress']['zip'] ?? '10001',
-        'shippingCountryCode' => $payload['shippingAddress']['countryCode'] ?? 'US',
-        'shippingCountry' => $payload['shippingAddress']['country'] ?? 'United States',
-        'shippingProvince' => $payload['shippingAddress']['state'] ?? 'NY',
-        'shippingCity' => $payload['shippingAddress']['city'] ?? 'New York',
-        'shippingAddress' => $payload['shippingAddress']['street'] ?? '123 Luxury Ave',
-        'shippingCustomerName' => $payload['customer']['name'] ?? 'Customer',
-        'shippingPhone' => $payload['customer']['phone'] ?? '+1 555-0199',
+        'shippingZip' => $address['zip'],
+        'shippingCountryCode' => $address['countryCode'] ?? 'US',
+        'shippingCountry' => $address['country'],
+        'logisticName' => $logisticName,
+        'shippingProvince' => $address['state'] ?? '',
+        'shippingCity' => $address['city'],
+        'shippingAddress' => $address['street'],
+        'shippingCustomerName' => $customer['name'],
+        'shippingPhone' => $customer['phone'],
         'payType' => 3, // Create order only
         'products' => array_map(function($it) {
             return [
-                'vid' => $it['vid'] ?? ('VID-' . ($it['sku'] ?? '100')),
-                'sku' => $it['sku'] ?? 'DEF-SKU',
-                'quantity' => (int)($it['quantity'] ?? 1)
+                'vid' => $it['vid'],
+                'sku' => $it['sku'] ?? '',
+                'quantity' => (int)$it['quantity']
             ];
-        }, $payload['items'] ?? [])
+        }, $items)
     ];
 
     if ($token) {
@@ -260,19 +454,16 @@ if ((strpos($uri, 'cj-order') !== false || $endpoint === 'cj-order') && $_SERVER
             echo json_encode([
                 'success' => true,
                 'cjOrderId' => $cjOrderRes['data']['orderId'] ?? ('CJ-' . time()),
-                'status' => 'DISPATCHED',
+                'status' => 'PLACED_ON_CJ',
                 'source' => 'cj_live_order'
             ]);
             exit();
         }
     }
 
-    // Fallback simulation
     echo json_encode([
-        'success' => true,
-        'cjOrderId' => 'ORD-' . rand(1000000000, 9999999999),
-        'status' => 'DISPATCHED',
-        'source' => 'simulated_order'
+        'success' => false,
+        'error' => 'CJ order was not created. Verify CJ_API_KEY and CJ response.'
     ]);
     exit();
 }

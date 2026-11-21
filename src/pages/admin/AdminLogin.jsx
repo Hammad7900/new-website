@@ -15,20 +15,20 @@ export const AdminLogin = () => {
 
   const from = location.state?.from?.pathname || '/admin';
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      const result = login(password);
+    try {
+      const result = await login(password);
+      if (result.success) navigate(from, { replace: true });
+      else setError(result.error);
+    } catch (err) {
+      setError(err.message || 'Unable to verify admin credentials.');
+    } finally {
       setIsLoading(false);
-      if (result.success) {
-        navigate(from, { replace: true });
-      } else {
-        setError(result.error);
-      }
-    }, 350);
+    }
   };
 
   return (
@@ -70,7 +70,7 @@ export const AdminLogin = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password (Hint: admin123)"
+                  placeholder="Administrator password"
                   className="w-full pl-4 pr-10 py-3 text-sm bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 transition-colors font-mono"
                 />
                 <KeyRound className="w-4 h-4 text-stone-400 absolute right-3.5 top-3.5" />
@@ -99,19 +99,6 @@ export const AdminLogin = () => {
             </button>
           </form>
 
-          {/* Demo Credentials Helper */}
-          <div className="mt-6 pt-5 border-t border-stone-100 text-center">
-            <div className="text-[11px] text-stone-400">
-              Demo Access Password: <strong className="text-stone-900 font-mono bg-stone-100 px-2 py-0.5 rounded">admin123</strong>
-            </div>
-            <button
-              type="button"
-              onClick={() => setPassword('admin123')}
-              className="mt-2 text-xs text-stone-600 hover:text-stone-900 underline font-medium"
-            >
-              Auto-fill "admin123"
-            </button>
-          </div>
         </div>
 
         <div className="text-center mt-6">

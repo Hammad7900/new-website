@@ -1,112 +1,46 @@
-# AURA Atelier & Goods — Luxury E-Commerce Storefront & Admin
+# AURA Atelier & Goods
 
-Production-ready, white-label luxury e-commerce platform with live factory inventory synchronization and encrypted checkout.
+React storefront with a portable PHP API. The deployed site uses same-origin `/api/*` routes; CJ credentials stay on the PHP host and are never placed in the browser bundle. No Netlify or Node server is required to deploy.
 
----
+## Requirements
 
-## 📂 Project Architecture & Folder Structure
+- PHP 8.0 or newer
+- PHP cURL enabled
+- Apache/LiteSpeed with `mod_rewrite` / compatible rewrite support
+- PHP process can write one JSON settings file in the site root
 
-```
-├── public/
-│   ├── .htaccess             # Apache SPA rewrite + /api/ routing
-│   ├── api/
-│   │   ├── index.php         # Hostinger PHP API (handles /api/cj-*)
-│   │   ├── test.php          # Live Diagnostic tool (check https://domain.com/api/test.php)
-│   │   └── .htaccess         # API subdirectory rewrite
-├── src/
-│   ├── config/
-│   │   ├── constants.js      # Brand details, pricing formulas, passwords
-│   │   └── api.js            # API endpoints & environment configurations
-│   ├── services/
-│   │   ├── api.js            # Dual-layer unified API (Hostinger PHP + Direct Browser)
-│   │   ├── cjApi.js          # Direct browser API client (CORS verified)
-│   │   └── couponService.js  # LocalStorage coupon engine
-│   ├── context/
-│   │   ├── CartContext.jsx      # Shopping cart & order storage (No dummy data)
-│   │   └── AdminAuthContext.jsx # Admin route protection (Password: admin123)
-│   ├── components/
-│   │   ├── admin/
-│   │   │   └── AdminLayout.jsx  # Admin portal sidebar & header
-│   │   ├── Navbar.jsx           # Customer storefront luxury navbar
-│   │   ├── Footer.jsx           # Luxury footer (white-label)
-│   │   ├── ProductCard.jsx      # Shopify-inspired cards with quick-add
-│   │   ├── HeroBanner.jsx       # Editorial hero section
-│   │   ├── CategoryPills.jsx    # Category filter pills
-│   │   ├── ReviewCard.jsx       # Verified client reviews
-│   │   ├── RelatedProducts.jsx  # Dynamic complementary products
-│   │   └── WhopCheckoutEmbed.jsx# Encrypted card & wallet checkout
-│   ├── pages/
-│   │   ├── store/               # Customer Storefront Pages
-│   │   │   ├── Home.jsx         # Homepage with dynamic catalog
-│   │   │   ├── ProductPage.jsx  # Product detail, live stock, variants
-│   │   │   ├── Cart.jsx         # Cart items & coupon validator
-│   │   │   ├── Checkout.jsx     # Clean address form & payment gateway
-│   │   │   ├── Contact.jsx      # Concierge contact page
-│   │   │   └── PrivacyPolicy.jsx# Privacy policy & terms
-│   │   └── admin/               # Admin Portal Pages (Password: admin123)
-│   │       ├── AdminLogin.jsx   # Admin authentication
-│   │       ├── AdminDashboard.jsx# Metrics (orders, revenue, low stock)
-│   │       ├── AdminOrders.jsx  # Order table with "Dispatch" button
-│   │       ├── AdminProducts.jsx# Live sourcing & catalog search
-│   │       └── AdminCoupons.jsx # Coupon manager
-│   ├── App.jsx                  # Main router setup
-│   ├── main.jsx                 # React root mount with providers
-│   └── index.css                # Tailwind CSS styles
-├── dist/                        # Production build output (Ready to upload to Hostinger)
-├── .env                         # API keys & config
-├── package.json
-└── vite.config.js
-```
+## Deploy to Hostinger or another PHP host
 
----
+1. Set `VITE_WHOP_PLAN_ID` in `.env` to the Whop checkout URL, then run `npm install` and `npm run build`.
+2. Upload the **contents of `dist/`** into the hosting document root, such as `public_html/`. Keep both `.htaccess` files and the `api/` directory.
+3. Copy `api/config.example.php` to `api/config.php`. Put your CJ API key and a new, unique admin password in `config.php`. Set `cj_start_country_code` to the CJ warehouse origin for your products (the sample is `CN`). The file is ignored by Git and is not included in the build. The same credentials can be supplied as `CJ_API_KEY` and `ADMIN_PASSWORD` PHP environment variables.
+4. Confirm PHP can create and update `.aura-store-data.json` in the document root. The root `.htaccess` blocks public requests to this private data file.
+5. Open `/api/test.php` to check the CJ connection, then sign in at `/admin/login` with the password configured in step 3.
 
-## 🚀 How to Deploy to Hostinger
+The same output can be hosted on any PHP 8+ Apache/LiteSpeed provider with cURL, rewrite rules, and writable site-root storage. The store uses plain PHP and JSON storage, so it needs no Composer packages or platform-specific function runtime.
 
-### Step 1: Build the Project
-Run this command in your project terminal:
+## Local development
+
+Copy `public/api/config.example.php` to `public/api/config.php` and fill in local credentials. Start PHP and Vite in separate terminals:
+
 ```bash
-npm run build
-```
-This generates the optimized `dist/` directory.
-
-### Step 2: Upload to Hostinger File Manager
-1. Log in to your **Hostinger hPanel**.
-2. Go to **Websites** -> Select your website -> **File Manager**.
-3. Open the **`public_html`** directory.
-4. Upload all the contents **inside** the `dist/` folder into `public_html/`:
-   ```
-   public_html/
-     ├── .htaccess            <-- MUST BE PRESENT (Controls SPA & API routing)
-     ├── index.html
-     ├── assets/
-     └── api/
-         ├── index.php        <-- Handles API calls
-         ├── test.php         <-- Diagnostic check
-         └── .htaccess
-   ```
-
-### Step 3: Test the Live Connection
-Open your browser and visit:
-```
-https://yourdomain.com/api/test.php
-```
-You should see:
-```json
-{
-  "status": "ONLINE_AND_CONNECTED",
-  "cj_authenticated": true,
-  "cj_sample_products_retrieved": 5,
-  "message": "CJ API is completely active and returning products from Hostinger!"
-}
+php -S 127.0.0.1:8000 -t public public/router.php
+npm run dev
 ```
 
----
+Vite forwards `/api/*` requests to the local PHP server. To produce the deployable site, run `npm run build` and upload the resulting `dist/` contents.
 
-## 🔐 Admin Panel Access
+## API routes
 
-- **URL**: `https://yourdomain.com/admin` (or `/admin/login`)
-- **Default Password**: `admin123`
-- From the admin panel you can:
-  - Search & source live warehouse products by keyword (e.g., watch, leather, lamp, sunglasses).
-  - Dispatch customer orders directly with one click.
-  - Create and manage discount coupon codes.
+- `GET /api/cj-products` — live CJ product search (`pageNum`, `pageSize`, `search`, `category`)
+- `GET /api/cj-products?id=...` — live CJ product detail and variants
+- `POST /api/cj-order` — admin-only: quote CJ freight and create a CJ order after payment verification
+- `POST /api/admin-auth` — verify the server-side admin password
+- `GET /api/store-settings` — read public store settings
+- `POST /api/store-settings` — update storewide shipping fee (requires `X-Admin-Password`)
+- `/api/coupons` — shared coupon management (admin password required)
+- `POST /api/coupon-validate` — validate customer coupon against product subtotal
+- `/api/orders` — save customer orders and manage payment/fulfillment status
+- `GET /api/test.php` — CJ connectivity diagnostic
+
+Shipping fees, coupons, and customer orders are stored server-side in a private JSON file. Cart contents stay in the customer's browser.

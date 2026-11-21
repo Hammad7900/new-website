@@ -27,5 +27,9 @@ dist-ssr
 # Environment
 .env.local
 .env.*.local
+public/api/config.php
+public/.aura-store-data.json
+public/.aura-store-data.json.lock
+public/api/.cj_token_*.json
 
 # Note: .env and .env.example are tracked for easy deployment configuration

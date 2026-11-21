@@ -10,7 +10,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-const POPULAR_QUERIES = ['watch', 'leather', 'headphone', 'ambient lamp', 'ring', 'coffee', 'sunglasses'];
+const POPULAR_QUERIES = ['watch', 'leather', 'headphone', 'lamp', 'ring', 'coffee', 'sunglasses'];
 
 export const AdminProducts = () => {
   const [products, setProducts] = useState([]);
@@ -26,7 +26,7 @@ export const AdminProducts = () => {
     else setLoading(true);
 
     try {
-      const q = keywordToSearch || cjKeyword || (selectedCategory === 'All' ? 'watch' : selectedCategory.toLowerCase());
+      const q = keywordToSearch || cjKeyword || '';
       const res = await fetchProducts({
         category: selectedCategory === 'All' ? '' : selectedCategory,
         search: q,
@@ -39,8 +39,8 @@ export const AdminProducts = () => {
 
       if (isManualSync || keywordToSearch) {
         setSyncMessage({
-          type: 'success',
-          text: `Retrieved ${res.data?.length || 0} real-time products directly from warehouse API (${res.source || 'live_api'}).`,
+          type: res.source === 'cj_error' ? 'error' : 'success',
+          text: res.source === 'cj_error' ? `CJ API error: ${res.error || 'check server CJ_API_KEY and CJ account access.'}` : `Retrieved ${res.data?.length || 0} live products (${res.source || 'live_api'}).`,
         });
         setTimeout(() => setSyncMessage(null), 5000);
       }
@@ -79,9 +79,9 @@ export const AdminProducts = () => {
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h3 className="font-semibold text-stone-900 text-sm">Direct Fulfillment API Connected</h3>
+              <h3 className="font-semibold text-stone-900 text-sm">CJ Dropshipping Product Search</h3>
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded-full">
-                Live & Verified
+                Server API
               </span>
             </div>
             <p className="text-xs text-stone-500 mt-0.5">
@@ -180,7 +180,7 @@ export const AdminProducts = () => {
                 if (cat !== 'All') {
                   loadCatalog(cat.toLowerCase(), true);
                 } else {
-                  loadCatalog('watch', true);
+                  loadCatalog('', true);
                 }
               }}
               className={`whitespace-nowrap px-3.5 py-1.5 rounded-xl text-xs font-semibold tracking-wider transition-colors ${

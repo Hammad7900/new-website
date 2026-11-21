@@ -10,13 +10,10 @@ export const BRAND = {
 };
 
 export const PRICING = {
-  retailMultiplier: 2.5,       // Wholesale cost × 2.5 = retail price
-  compareMultiplier: 1.4,      // Retail × 1.4 = compare-at price (slashed)
-  minRetailPrice: 25,          // Minimum retail price threshold
-  freeShippingThreshold: 150,  // Free shipping above $150
-  shippingCost: 12.99,         // Flat shipping below threshold
+  retailMultiplier: 0,
+  compareMultiplier: 1.4,
+  minRetailPrice: 0,
+  shippingCost: 12.99,
 };
 
-export const DEFAULT_SEARCH_KEYWORD = 'watch'; // High-converting fallback query
-
-export const ADMIN_PASSWORD = 'admin123';
+export const DEFAULT_SEARCH_KEYWORD = '';

@@ -39,6 +39,7 @@ export const Checkout = () => {
     state: '',
     postalCode: '',
     country: '',
+    countryCode: '',
   });
   const [errors, setErrors] = useState({});
 
@@ -53,6 +54,7 @@ export const Checkout = () => {
     if (!form.street.trim()) errs.street = 'Street address is required';
     if (!form.city.trim()) errs.city = 'City is required';
     if (!form.country.trim()) errs.country = 'Country is required';
+    if (!/^[A-Za-z]{2}$/.test(form.countryCode.trim())) errs.countryCode = 'Enter the 2-letter country code (for example, US).';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -64,8 +66,8 @@ export const Checkout = () => {
     }
   };
 
-  const handlePaymentComplete = (paymentData = {}) => {
-    const order = saveOrder({
+  const handlePaymentComplete = async (paymentData = {}) => {
+    const order = await saveOrder({
       customer: form,
       shippingAddress: {
         street: form.street,
@@ -73,9 +75,10 @@ export const Checkout = () => {
         state: form.state,
         zip: form.postalCode,
         country: form.country,
-        countryCode: 'US',
+        countryCode: form.countryCode.toUpperCase(),
       },
       items: cartItems.map((it) => ({
+        id: it.id,
         name: it.name,
         sku: it.sku,
         vid: it.vid,
@@ -118,15 +121,14 @@ export const Checkout = () => {
           <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 className="w-10 h-10 text-emerald-600" />
           </div>
-          <h2 className="font-serif text-3xl text-stone-900 mb-2">Order Confirmed</h2>
+          <h2 className="font-serif text-3xl text-stone-900 mb-2">Order Submitted</h2>
           <p className="text-stone-500 text-sm mb-4">
             Thank you, <strong>{form.name}</strong>. Your order{' '}
             <span className="font-mono font-bold text-stone-900">{confirmedOrderId}</span> has been
-            placed successfully.
+            was submitted and is waiting for payment verification.
           </p>
           <p className="text-xs text-stone-400 mb-8">
-            An order confirmation and delivery tracking information will be sent to{' '}
-            <strong>{form.email}</strong>.
+            Payment must be verified before this order is placed with CJ. Tracking emails are not sent automatically.
           </p>
           <button
             onClick={() => navigate('/')}
@@ -184,6 +186,7 @@ export const Checkout = () => {
                     type="tel"
                     value={form.phone}
                     onChange={handleChange}
+                    required
                     placeholder="e.g. +1 (555) 012-3456"
                   />
                   <FormField
@@ -216,6 +219,7 @@ export const Checkout = () => {
                     name="postalCode"
                     value={form.postalCode}
                     onChange={handleChange}
+                    required
                     placeholder="e.g. 10001"
                     half
                   />
@@ -226,6 +230,15 @@ export const Checkout = () => {
                     onChange={handleChange}
                     required
                     placeholder="e.g. United States"
+                    half
+                  />
+                  <FormField
+                    label="Country Code"
+                    name="countryCode"
+                    value={form.countryCode}
+                    onChange={handleChange}
+                    required
+                    placeholder="e.g. US"
                     half
                   />
                 </div>
@@ -250,7 +263,7 @@ export const Checkout = () => {
                   Payment Authorization
                 </h2>
                 <p className="text-xs text-stone-500 mb-6">
-                  Complete your secure transaction to dispatch order #{cartItems.length} items.
+                  Pay through Whop, then submit the order for manual payment verification.
                 </p>
 
                 <WhopCheckoutEmbed

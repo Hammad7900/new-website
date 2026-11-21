@@ -25,7 +25,7 @@ export const AdminCoupons = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    setCoupons(getCoupons());
+    getCoupons().then(setCoupons).catch((error) => showToast('error', error.message));
   }, []);
 
   const showToast = (type, text) => {
@@ -33,7 +33,7 @@ export const AdminCoupons = () => {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleAdd = (e) => {
+  const handleAdd = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     try {
@@ -43,7 +43,7 @@ export const AdminCoupons = () => {
       if (parseFloat(form.value) <= 0) {
         throw new Error('Discount value must be greater than 0.');
       }
-      const updated = addCoupon({
+      const updated = await addCoupon({
         ...form,
         value: parseFloat(form.value),
       });
@@ -57,11 +57,15 @@ export const AdminCoupons = () => {
     }
   };
 
-  const handleDelete = (code) => {
+  const handleDelete = async (code) => {
     if (!window.confirm(`Delete coupon "${code}"?`)) return;
-    const updated = deleteCoupon(code);
-    setCoupons(updated);
-    showToast('success', `Coupon "${code}" deleted.`);
+    try {
+      const updated = await deleteCoupon(code);
+      setCoupons(updated);
+      showToast('success', `Coupon "${code}" deleted.`);
+    } catch (error) {
+      showToast('error', error.message);
+    }
   };
 
   return (

@@ -1,7 +1,7 @@
 // src/context/AdminAuthContext.jsx
 import React, { createContext, useContext, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { ADMIN_PASSWORD } from '../config/constants';
+import { verifyAdminPassword } from '../services/api';
 
 const AdminAuthContext = createContext(null);
 
@@ -10,18 +10,22 @@ export const AdminAuthProvider = ({ children }) => {
     return sessionStorage.getItem('aura_admin_auth') === 'true';
   });
 
-  const login = (password) => {
-    if (password === ADMIN_PASSWORD) {
+  const login = async (password) => {
+    try {
+      await verifyAdminPassword(password);
       setIsAuthenticated(true);
       sessionStorage.setItem('aura_admin_auth', 'true');
+      sessionStorage.setItem('aura_admin_password', password);
       return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message || 'Incorrect password. Please try again.' };
     }
-    return { success: false, error: 'Incorrect password. Please try again.' };
   };
 
   const logout = () => {
     setIsAuthenticated(false);
     sessionStorage.removeItem('aura_admin_auth');
+    sessionStorage.removeItem('aura_admin_password');
   };
 
   return (

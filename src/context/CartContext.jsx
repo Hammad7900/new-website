@@ -2,35 +2,34 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { validateCoupon } from '../services/couponService';
 import { PRICING } from '../config/constants';
+import { createStoreOrder, fetchStoreSettings, getAdminOrders, saveStoreSettings, updateAdminOrder } from '../services/api';
 
 const CartContext = createContext(null);
 
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('aura_cart') || '[]');
+      return JSON.parse(localStorage.getItem('aura_cart') || '[]').map((item) => ({ ...item, price: 0 }));
     } catch {
       return [];
     }
   });
 
-  const [orders, setOrders] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('aura_orders') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [orders, setOrders] = useState([]);
 
   const [coupon, setCoupon] = useState(null);
+  const [shipping, setShipping] = useState(PRICING.shippingCost);
+
+  useEffect(() => {
+    fetchStoreSettings().then((settings) => {
+      const amount = Number(settings.shippingCost);
+      if (Number.isFinite(amount) && amount >= 0) setShipping(amount);
+    }).catch((error) => console.error('[Store settings]', error));
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('aura_cart', JSON.stringify(cartItems));
   }, [cartItems]);
-
-  useEffect(() => {
-    localStorage.setItem('aura_orders', JSON.stringify(orders));
-  }, [orders]);
 
   const addToCart = (product, quantity = 1, variant = null) => {
     setCartItems((prev) => {
@@ -49,7 +48,7 @@ export const CartProvider = ({ children }) => {
           cartKey: key,
           id: product.id,
           name: product.name,
-          price: variant?.price || product.price,
+          price: variant?.price ?? product.price,
           image: product.images?.[0] || '',
           sku: variant?.sku || product.sku,
           vid: variant?.vid || product.variants?.[0]?.vid || '',
@@ -76,31 +75,42 @@ export const CartProvider = ({ children }) => {
 
   const clearCart = () => setCartItems([]);
 
-  const applyCoupon = (code, currentSubtotal) => {
-    const result = validateCoupon(code, currentSubtotal);
-    if (result.valid) {
+  const applyCoupon = async (code, currentSubtotal) => {
+    try {
+      const result = await validateCoupon(code, currentSubtotal);
       setCoupon(result);
       return { success: true, discount: result.discount, coupon: result.coupon };
+    } catch (error) {
+      return { success: false, error: error.message };
     }
-    return { success: false, error: result.error };
   };
 
   const removeCoupon = () => setCoupon(null);
+  const updateShippingCost = async (value) => {
+    const amount = Number(value);
+    if (!Number.isFinite(amount) || amount < 0) throw new Error('Enter a valid shipping fee.');
+    const password = sessionStorage.getItem('aura_admin_password') || '';
+    await saveStoreSettings({ shippingCost: amount }, password);
+    setShipping(amount);
+    return true;
+  };
 
-  const saveOrder = (orderData) => {
-    const order = {
-      id: `ORD-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      status: 'PAID',
-      ...orderData,
-    };
+  const saveOrder = async (orderData) => {
+    const order = await createStoreOrder(orderData);
     setOrders((prev) => [order, ...prev]);
     clearCart();
     setCoupon(null);
     return order;
   };
 
-  const updateOrderStatus = (orderId, status, cjOrderId = null) => {
+  const refreshOrders = async () => {
+    const current = await getAdminOrders();
+    setOrders(current);
+    return current;
+  };
+
+  const updateOrderStatus = async (orderId, status, cjOrderId = null) => {
+    await updateAdminOrder(orderId, status, cjOrderId);
     setOrders((prev) =>
       prev.map((o) =>
         o.id === orderId
@@ -111,14 +121,9 @@ export const CartProvider = ({ children }) => {
   };
 
   const subtotal = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  const shipping =
-    subtotal >= PRICING.freeShippingThreshold
-      ? 0
-      : cartItems.length > 0
-      ? PRICING.shippingCost
-      : 0;
-  const discountAmount = coupon?.discount || 0;
-  const total = Math.max(0, subtotal - discountAmount + shipping);
+  const shippingTotal = cartItems.length ? shipping : 0;
+  const discountAmount = Math.min(subtotal, coupon?.discount || 0);
+  const total = Math.max(0, subtotal - discountAmount + shippingTotal);
   const itemCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
 
   return (
@@ -133,10 +138,13 @@ export const CartProvider = ({ children }) => {
         clearCart,
         applyCoupon,
         removeCoupon,
+        updateShippingCost,
         saveOrder,
+        refreshOrders,
         updateOrderStatus,
         subtotal,
-        shipping,
+        shipping: shippingTotal,
+        shippingRate: shipping,
         discountAmount,
         total,
         itemCount,

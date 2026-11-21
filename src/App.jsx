@@ -39,7 +39,7 @@ export const App = () => {
           <Route path="/contact" element={<Contact />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
-          {/* Admin Routes (Protected with password "admin123") */}
+          {/* Admin routes are protected by the server-configured password. */}
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route
             path="/admin"

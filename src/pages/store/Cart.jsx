@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, Tag, X, Truck, Shield } from 'lucide-react';
-import { PRICING } from '../../config/constants';
 
 export const Cart = () => {
   const {
@@ -24,14 +23,14 @@ export const Cart = () => {
   const [couponError, setCouponError] = useState('');
   const [couponSuccess, setCouponSuccess] = useState('');
 
-  const handleApplyCoupon = () => {
+  const handleApplyCoupon = async () => {
     setCouponError('');
     setCouponSuccess('');
     if (!couponInput.trim()) {
       setCouponError('Please enter a coupon code.');
       return;
     }
-    const result = applyCoupon(couponInput.trim(), subtotal);
+    const result = await applyCoupon(couponInput.trim(), subtotal);
     if (result.success) {
       setCouponSuccess(`Coupon applied! You save $${result.discount.toFixed(2)}`);
       setCouponInput('');
@@ -236,11 +235,6 @@ export const Cart = () => {
                     )}
                   </span>
                 </div>
-                {subtotal < PRICING.freeShippingThreshold && (
-                  <p className="text-[11px] text-stone-400 mt-1">
-                    Add ${(PRICING.freeShippingThreshold - subtotal).toFixed(2)} more for complimentary shipping.
-                  </p>
-                )}
               </div>
 
               <div className="border-t border-stone-100 mt-4 pt-4 flex justify-between items-center">

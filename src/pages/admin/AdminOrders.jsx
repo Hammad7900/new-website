@@ -1,5 +1,5 @@
 // src/pages/admin/AdminOrders.jsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AdminLayout } from '../../components/admin/AdminLayout';
 import { useCart } from '../../context/CartContext';
 import { placeOrderOnCJ } from '../../services/api';
@@ -16,16 +16,21 @@ import {
 } from 'lucide-react';
 
 export const AdminOrders = () => {
-  const { orders, updateOrderStatus } = useCart();
-  const [filter, setFilter] = useState('ALL'); // 'ALL' | 'PAID' | 'PLACED_ON_CJ'
+  const { orders, updateOrderStatus, refreshOrders } = useCart();
+  const [filter, setFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loadingOrderId, setLoadingOrderId] = useState(null);
   const [notification, setNotification] = useState(null);
 
+  useEffect(() => {
+    refreshOrders().catch((error) => setNotification({ type: 'error', message: error.message }));
+  }, []);
+
   // Filter orders
   const filteredOrders = orders.filter((order) => {
     if (filter === 'PAID' && order.status !== 'PAID') return false;
+    if (filter === 'PAYMENT_REVIEW' && order.status !== 'PAYMENT_REVIEW') return false;
     if (filter === 'PLACED_ON_CJ' && order.status !== 'PLACED_ON_CJ' && order.status !== 'DISPATCHED') return false;
     if (search) {
       const q = search.toLowerCase();
@@ -65,10 +70,10 @@ export const AdminOrders = () => {
       const result = await placeOrderOnCJ(payload);
 
       if (result.success) {
-        updateOrderStatus(order.id, 'PLACED_ON_CJ', result.cjOrderId);
+        await updateOrderStatus(order.id, 'PLACED_ON_CJ', result.cjOrderId);
         setNotification({
           type: 'success',
-          message: `Order ${order.id} dispatched successfully! Dispatch Reference ID: ${result.cjOrderId}`,
+          message: `Order ${order.id} was created in CJ and is awaiting CJ payment. Reference: ${result.cjOrderId}`,
         });
       } else {
         setNotification({
@@ -128,6 +133,9 @@ export const AdminOrders = () => {
             }`}
           >
             All Orders ({orders.length})
+          </button>
+          <button type="button" onClick={() => setFilter('PAYMENT_REVIEW')} className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider ${filter === 'PAYMENT_REVIEW' ? 'bg-rose-700 text-white' : 'bg-rose-50 text-rose-800'}`}>
+            Verify Payment ({orders.filter((o) => o.status === 'PAYMENT_REVIEW').length})
           </button>
           <button
             type="button"
@@ -251,6 +259,8 @@ export const AdminOrders = () => {
                               ID: {order.cjOrderId}
                             </div>
                           </div>
+                        ) : order.status === 'PAYMENT_REVIEW' ? (
+                          <span className="inline-flex items-center text-[10px] font-bold text-rose-800 bg-rose-50 px-2.5 py-0.5 rounded-full"><Clock className="w-3 h-3 mr-1" />Payment verification needed</span>
                         ) : (
                           <span className="inline-flex items-center text-[10px] font-bold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full">
                             <Clock className="w-3 h-3 mr-1 text-amber-600" />
@@ -268,6 +278,8 @@ export const AdminOrders = () => {
                           >
                             Inspect Details
                           </button>
+                        ) : order.status === 'PAYMENT_REVIEW' ? (
+                          <button type="button" onClick={() => { updateOrderStatus(order.id, 'PAID'); setSelectedOrder({ ...order, status: 'PAID' }); }} className="px-3 py-2 rounded-xl bg-rose-700 text-white text-[10px] font-bold uppercase tracking-wide">Mark Whop payment verified</button>
                         ) : (
                           <button
                             type="button"
@@ -323,20 +335,13 @@ export const AdminOrders = () => {
                   <span className="font-semibold text-stone-900">
                     {selectedOrder.status === 'PLACED_ON_CJ' || selectedOrder.status === 'DISPATCHED'
                       ? `Dispatched to Production (Reference: ${selectedOrder.cjOrderId})`
-                      : 'Awaiting manual trigger from Admin panel'}
+                      : selectedOrder.status === 'PAYMENT_REVIEW' ? 'Payment must be verified in Whop before dispatch.' : 'Paid and ready for dispatch.'}
                   </span>
                 </div>
                 {selectedOrder.status !== 'PLACED_ON_CJ' && selectedOrder.status !== 'DISPATCHED' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handlePlaceOrder(selectedOrder);
-                      setSelectedOrder(null);
-                    }}
-                    className="px-4 py-2 bg-stone-900 hover:bg-black text-white text-xs font-semibold rounded-xl"
-                  >
-                    Dispatch Now
-                  </button>
+                  selectedOrder.status === 'PAYMENT_REVIEW' ? (
+                    <button type="button" onClick={() => { updateOrderStatus(selectedOrder.id, 'PAID'); setSelectedOrder({ ...selectedOrder, status: 'PAID' }); }} className="px-4 py-2 bg-rose-700 text-white text-xs font-semibold rounded-xl">Mark payment verified</button>
+                  ) : <button type="button" onClick={() => { handlePlaceOrder(selectedOrder); setSelectedOrder(null); }} className="px-4 py-2 bg-stone-900 hover:bg-black text-white text-xs font-semibold rounded-xl">Dispatch Now</button>
                 )}
               </div>
 

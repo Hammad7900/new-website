@@ -1,106 +1,51 @@
-// src/services/api.js
-// Dual-Layer API Service:
-// Layer 1: Hostinger PHP backend / serverless (/api/cj-*)
-// Layer 2: Direct CJ API Failover with CORS * support
-
-import { directFetchProducts, directFetchProductById, directPlaceOrder } from './cjApi';
-
-// Main fetchProducts function
-export async function fetchProducts({ pageNum = 1, pageSize = 20, category = '', search = '' } = {}) {
-  // Layer 1: Try Hostinger / Local Server API
-  try {
-    const params = new URLSearchParams({
-      pageNum: pageNum.toString(),
-      pageSize: pageSize.toString(),
-      ...(category && category !== 'All' ? { category } : {}),
-      ...(search ? { search } : {}),
-    });
-
-    const response = await fetch(`/api/cj-products?${params.toString()}`);
-    if (response.ok) {
-      const text = await response.text();
-      if (text.startsWith('{') || text.startsWith('[')) {
-        const data = JSON.parse(text);
-        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
-          return data;
-        }
-      }
-    }
-  } catch (err) {
-    // PHP layer not available (e.g. running vite dev standalone or Hostinger rewrite not hit)
-    // Fall seamlessly to Layer 2
-  }
-
-  // Layer 2: Direct CJ API call from browser
-  const directResult = await directFetchProducts({ pageNum, pageSize, search, category });
-  if (directResult && directResult.data && directResult.data.length > 0) {
-    return directResult;
-  }
-
-  // Live empty fallback (no dummy/fake data)
-  return {
-    success: true,
-    data: [],
-    total: 0,
-    source: 'cj_live_empty',
-  };
+async function request(path, options = {}) {
+  const response = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.success === false) throw new Error(data.error || `API request failed (${response.status})`);
+  return data;
 }
 
-// Fetch single product by ID
-export async function fetchProductById(id) {
-  // Layer 1: Try Server API
-  try {
-    const response = await fetch(`/api/cj-products?id=${encodeURIComponent(id)}`);
-    if (response.ok) {
-      const text = await response.text();
-      if (text.startsWith('{') || text.startsWith('[')) {
-        const data = JSON.parse(text);
-        if (data.success && data.data && data.data.length > 0) {
-          return data.data[0];
-        }
-      }
-    }
-  } catch (e) {
-    // Fall through to Layer 2
-  }
+export const fetchProducts = async ({ pageNum = 1, pageSize = 20, category = '', search = '' } = {}) => {
+  const params = new URLSearchParams({ pageNum: String(pageNum), pageSize: String(pageSize) });
+  if (category && category !== 'All') params.set('category', category);
+  if (search) params.set('search', search);
+  return request(`/api/cj-products?${params}`);
+};
 
-  // Layer 2: Direct CJ API call
-  return directFetchProductById(id);
-}
+export const fetchProductById = async (id) => {
+  const result = await request(`/api/cj-products?id=${encodeURIComponent(id)}`);
+  return result.data?.[0] || null;
+};
 
-// Dispatch order
-export async function placeOrderOnCJ(orderData) {
-  // Layer 1: Try Server API
-  try {
-    const response = await fetch('/api/cj-order', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(orderData),
-    });
+export const placeOrderOnCJ = (orderData) => request('/api/cj-order', {
+  method: 'POST',
+  headers: adminHeaders(),
+  body: JSON.stringify(orderData),
+});
 
-    if (response.ok) {
-      const text = await response.text();
-      if (text.startsWith('{')) {
-        const data = JSON.parse(text);
-        if (data.success) return data;
-      }
-    }
-  } catch (err) {
-    console.warn('[API] Server /api/cj-order error:', err);
-  }
+export const verifyAdminPassword = (password) => request('/api/admin-auth', {
+  method: 'POST',
+  body: JSON.stringify({ password }),
+});
 
-  // Layer 2: Direct CJ API Order Placement
-  const directOrder = await directPlaceOrder(orderData);
-  if (directOrder && directOrder.success) {
-    return directOrder;
-  }
+export const fetchStoreSettings = () => request('/api/store-settings');
 
-  // Simulated queue registration if offline
-  return {
-    success: true,
-    cjOrderId: 'ORD-' + Math.floor(1000000000 + Math.random() * 9000000000),
-    status: 'DISPATCHED',
-    source: 'simulated_local',
-    message: 'Order registered in fulfillment pipeline.',
-  };
-}
+export const saveStoreSettings = (settings, adminPassword) => request('/api/store-settings', {
+  method: 'POST',
+  headers: { 'X-Admin-Password': adminPassword },
+  body: JSON.stringify(settings),
+});
+
+const adminHeaders = () => ({ 'X-Admin-Password': sessionStorage.getItem('aura_admin_password') || '' });
+
+export const getAdminCoupons = async () => (await request('/api/coupons', { headers: adminHeaders() })).coupons;
+export const createAdminCoupon = async (coupon) => (await request('/api/coupons', { method: 'POST', headers: adminHeaders(), body: JSON.stringify(coupon) })).coupons;
+export const removeAdminCoupon = async (code) => (await request(`/api/coupons?code=${encodeURIComponent(code)}`, { method: 'DELETE', headers: adminHeaders() })).coupons;
+export const checkCoupon = (code, subtotal) => request('/api/coupon-validate', { method: 'POST', body: JSON.stringify({ code, subtotal }) });
+export const createStoreOrder = async (order) => (await request('/api/orders', { method: 'POST', body: JSON.stringify(order) })).order;
+export const getAdminOrders = async () => (await request('/api/orders', { headers: adminHeaders() })).orders;
+export const updateAdminOrder = (id, status, cjOrderId) => request('/api/orders', {
+  method: 'PATCH',
+  headers: adminHeaders(),
+  body: JSON.stringify({ id, status, cjOrderId }),
+});
