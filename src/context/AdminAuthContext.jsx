@@ -1,41 +1,27 @@
 // src/context/AdminAuthContext.jsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { ADMIN_PASSWORD } from '../config/constants';
 
-const AdminAuthContext = createContext();
-
-const ADMIN_STORAGE_KEY = 'luxury_store_admin_auth';
-const ADMIN_PASSWORD = 'admin123';
+const AdminAuthContext = createContext(null);
 
 export const AdminAuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    try {
-      return localStorage.getItem(ADMIN_STORAGE_KEY) === 'true';
-    } catch {
-      return false;
-    }
+    return sessionStorage.getItem('aura_admin_auth') === 'true';
   });
 
   const login = (password) => {
     if (password === ADMIN_PASSWORD) {
       setIsAuthenticated(true);
-      try {
-        localStorage.setItem(ADMIN_STORAGE_KEY, 'true');
-      } catch (e) {
-        console.error(e);
-      }
+      sessionStorage.setItem('aura_admin_auth', 'true');
       return { success: true };
     }
-    return { success: false, error: 'Incorrect administrator password.' };
+    return { success: false, error: 'Incorrect password. Please try again.' };
   };
 
   const logout = () => {
     setIsAuthenticated(false);
-    try {
-      localStorage.removeItem(ADMIN_STORAGE_KEY);
-    } catch (e) {
-      console.error(e);
-    }
+    sessionStorage.removeItem('aura_admin_auth');
   };
 
   return (
@@ -46,14 +32,11 @@ export const AdminAuthProvider = ({ children }) => {
 };
 
 export const useAdminAuth = () => {
-  const context = useContext(AdminAuthContext);
-  if (!context) {
-    throw new Error('useAdminAuth must be used within an AdminAuthProvider');
-  }
-  return context;
+  const ctx = useContext(AdminAuthContext);
+  if (!ctx) throw new Error('useAdminAuth must be used within AdminAuthProvider');
+  return ctx;
 };
 
-// Protected route wrapper
 export const AdminRoute = ({ children }) => {
   const { isAuthenticated } = useAdminAuth();
   const location = useLocation();

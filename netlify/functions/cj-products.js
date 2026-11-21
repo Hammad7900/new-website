@@ -159,7 +159,7 @@ export async function fetchLiveCJProducts({ pageNum = 1, pageSize = 20, search =
   }
 
   // Search keyword or default curated queries (e.g. watch, leather, audio, lamp)
-  const effectiveKeyword = search || (category && category !== 'All' ? category : '');
+  const effectiveKeyword = search || (category && category !== 'All' ? category : 'watch');
   const url = `https://developers.cjdropshipping.com/api2.0/v1/product/listV2?pageNum=${pageNum}&pageSize=${pageSize}${effectiveKeyword ? `&keyWord=${encodeURIComponent(effectiveKeyword)}` : ''}`;
 
   const cjResponse = await fetch(url, {

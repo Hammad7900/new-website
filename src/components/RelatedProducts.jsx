@@ -1,11 +1,38 @@
 // src/components/RelatedProducts.jsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProductCard } from './ProductCard';
+import { fetchProducts } from '../services/api';
 
 export const RelatedProducts = ({ currentProductId, category, allProducts = [] }) => {
+  const [items, setItems] = useState(allProducts);
+
+  useEffect(() => {
+    if (allProducts && allProducts.length > 0) {
+      setItems(allProducts);
+      return;
+    }
+
+    let isMounted = true;
+    async function loadRelated() {
+      try {
+        const res = await fetchProducts({ category: category || '', pageSize: 8 });
+        if (isMounted && res && res.data) {
+          setItems(res.data);
+        }
+      } catch (err) {
+        console.warn('Failed to load related products:', err);
+      }
+    }
+
+    loadRelated();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentProductId, category, allProducts]);
+
   // Filter products by same category, excluding current product
-  const related = allProducts
-    .filter((p) => p.id !== currentProductId && (category ? p.category === category : true))
+  const related = items
+    .filter((p) => p.id !== currentProductId)
     .slice(0, 4);
 
   if (related.length === 0) return null;
@@ -31,3 +58,5 @@ export const RelatedProducts = ({ currentProductId, category, allProducts = [] }
     </section>
   );
 };
+
+export default RelatedProducts;

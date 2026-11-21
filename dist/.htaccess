@@ -2,9 +2,10 @@
   RewriteEngine On
   RewriteBase /
 
-  # Allow API requests to go through if PHP backend exists in /api
-  RewriteRule ^api/ - [L]
+  # Route all API calls directly to Hostinger PHP backend
+  RewriteRule ^api/(.*)$ /api/index.php [QSA,L]
 
+  # Route all other frontend requests to index.html for React Router
   RewriteRule ^index\.html$ - [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
@@ -12,12 +13,10 @@
   RewriteRule . /index.html [L]
 </IfModule>
 
-# Caching for assets
 <IfModule mod_expires.c>
   ExpiresActive On
   ExpiresByType image/jpg "access plus 1 year"
   ExpiresByType image/jpeg "access plus 1 year"
-  ExpiresByType image/gif "access plus 1 year"
   ExpiresByType image/png "access plus 1 year"
   ExpiresByType image/webp "access plus 1 year"
   ExpiresByType text/css "access plus 1 month"

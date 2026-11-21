@@ -4,20 +4,20 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 
-// Customer Pages
-import { Home } from './pages/Home';
-import { ProductPage } from './pages/ProductPage';
-import { Cart } from './pages/Cart';
-import { Checkout } from './pages/Checkout';
-import { Contact } from './pages/Contact';
-import { PrivacyPolicy } from './pages/PrivacyPolicy';
+// Customer Facing Store Pages
+import { Home } from './pages/store/Home';
+import { ProductPage } from './pages/store/ProductPage';
+import { Cart } from './pages/store/Cart';
+import { Checkout } from './pages/store/Checkout';
+import { Contact } from './pages/store/Contact';
+import { PrivacyPolicy } from './pages/store/PrivacyPolicy';
 
-// Admin Pages & Protection
-import { AdminLogin } from './pages/AdminLogin';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { AdminOrders } from './pages/AdminOrders';
-import { AdminProducts } from './pages/AdminProducts';
-import { AdminCoupons } from './pages/AdminCoupons';
+// Admin Portal Pages & Protection
+import { AdminLogin } from './pages/admin/AdminLogin';
+import { AdminDashboard } from './pages/admin/AdminDashboard';
+import { AdminOrders } from './pages/admin/AdminOrders';
+import { AdminProducts } from './pages/admin/AdminProducts';
+import { AdminCoupons } from './pages/admin/AdminCoupons';
 import { AdminRoute } from './context/AdminAuthContext';
 
 export const App = () => {
@@ -39,7 +39,7 @@ export const App = () => {
           <Route path="/contact" element={<Contact />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
-          {/* Admin Routes (Password: "admin123") */}
+          {/* Admin Routes (Protected with password "admin123") */}
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route
             path="/admin"

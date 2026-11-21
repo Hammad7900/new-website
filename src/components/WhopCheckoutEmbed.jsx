@@ -12,9 +12,9 @@ export const WhopCheckoutEmbed = ({ planId, total, onComplete, customerInfo }) =
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMode, setPaymentMode] = useState('card'); // 'card' | 'applepay' | 'portal'
-  const [cardNumber, setCardNumber] = useState('4242 •••• •••• 4242');
-  const [expiry, setExpiry] = useState('12/28');
-  const [cvc, setCvc] = useState('888');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [cvc, setCvc] = useState('');
 
   const handleSimulatePayment = (e) => {
     e?.preventDefault();
