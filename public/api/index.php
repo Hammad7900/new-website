@@ -292,8 +292,7 @@ if (str_ends_with($uri, '/orders')) {
 if (strpos($uri, 'cj-products') !== false || $endpoint === 'cj-products') {
     $token = getAccessToken($CJ_API_KEY);
     if (!$token) {
-        echo json_encode(['success' => false, 'error' => 'Unable to authenticate with CJ API']);
-        exit();
+        sendJson(503, ['success' => false, 'error' => $CJ_API_KEY === '' ? 'CJ API key is missing. Set cj_api_key in api/config.php or CJ_API_KEY on the PHP server.' : 'CJ authentication failed. Verify the API key in CJ Authorization > API.']);
     }
 
     $pageNum = isset($_GET['pageNum']) ? (int)$_GET['pageNum'] : 1;
