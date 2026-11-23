@@ -9,7 +9,7 @@ const CartContext = createContext(null);
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('aura_cart') || '[]').map((item) => ({ ...item, price: 0 }));
+      return JSON.parse(localStorage.getItem('aura_cart') || '[]');
     } catch {
       return [];
     }

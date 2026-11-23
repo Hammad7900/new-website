@@ -9,7 +9,7 @@ header('Access-Control-Allow-Origin: *');
 
 $configFile = __DIR__ . '/config.php';
 $appConfig = is_file($configFile) ? (require $configFile) : [];
-$apiKey = getenv('CJ_API_KEY') ?: ($appConfig['cj_api_key'] ?? '');
+$apiKey = getenv('CJ_API_KEY') ?: ($appConfig['cj_api_key'] ?? 'CJ5799036@api@68240b5fc55f4b8db42e75c858c29b05');
 
 $curlEnabled = function_exists('curl_init');
 $phpVersion = phpversion();

@@ -12,7 +12,7 @@ export const HeroBanner = () => {
           {/* Subtle Tag */}
           <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-stone-900/90 border border-stone-800 text-gold-400 text-xs font-semibold uppercase tracking-widest mb-6">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Free Products · Pay Shipping</span>
+            <span>Curated Products · Secure Checkout</span>
           </div>
 
           {/* Heading */}
@@ -23,7 +23,7 @@ export const HeroBanner = () => {
 
           {/* Description */}
           <p className="text-stone-300 text-sm sm:text-base leading-relaxed mb-8 max-w-xl font-light">
-            Browse products from our connected CJ catalog. Product prices are free; pay the shipping fee shown before checkout.
+            Discover the products selected for our collection. Product prices and shipping are shown clearly before checkout.
           </p>
 
           {/* CTA Buttons */}

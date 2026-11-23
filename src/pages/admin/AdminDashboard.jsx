@@ -66,7 +66,7 @@ export const AdminDashboard = () => {
       <form onSubmit={saveShippingFee} className="bg-white border border-stone-200 rounded-2xl p-5 mb-8 flex flex-col sm:flex-row sm:items-end gap-4">
         <div className="flex-1">
           <h3 className="font-semibold text-stone-900 text-sm">Storewide shipping fee</h3>
-          <p className="text-xs text-stone-500 mt-1">This flat fee applies to every cart. Product prices are free; coupons discount the product subtotal only.</p>
+          <p className="text-xs text-stone-500 mt-1">This flat fee applies once per cart. Coupons discount the listed product subtotal.</p>
         </div>
         <label className="text-xs text-stone-600">Shipping (USD)
           <input type="number" min="0" step="0.01" required value={shippingFee} onChange={(e) => setShippingFee(e.target.value)} className="block mt-1 px-3 py-2 border border-stone-200 rounded-lg" />

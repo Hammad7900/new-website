@@ -1,14 +1,12 @@
 // src/components/admin/AdminLayout.jsx
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAdminAuth } from '../../context/AdminAuthContext';
 import { BRAND } from '../../config/constants';
 import {
   LayoutDashboard,
   ShoppingBag,
   PackageCheck,
   Tag,
-  LogOut,
   ExternalLink,
   Shield,
   Zap,
@@ -22,13 +20,11 @@ const NAV_ITEMS = [
 ];
 
 export const AdminLayout = ({ children, title = 'Management Dashboard' }) => {
-  const { logout } = useAdminAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout();
-    navigate('/admin/login');
+    navigate('/');
   };
 
   const isActive = (path) => {
@@ -107,8 +103,8 @@ export const AdminLayout = ({ children, title = 'Management Dashboard' }) => {
             onClick={handleLogout}
             className="w-full flex items-center space-x-2 px-3.5 py-2.5 rounded-xl text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 transition-colors"
           >
-            <LogOut className="w-4 h-4" />
-            <span>Sign Out Admin</span>
+            <ExternalLink className="w-4 h-4" />
+            <span>Return to Store</span>
           </button>
         </div>
       </aside>

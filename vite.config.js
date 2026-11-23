@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { readdir, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { apiDevServerPlugin } from './vite-api-dev.js';
 
 const removePrivateApiFilesFromBuild = {
   name: 'remove-private-api-files-from-build',
@@ -14,19 +15,18 @@ const removePrivateApiFilesFromBuild = {
     } catch {
       return;
     }
-    await Promise.all(entries
-      .filter((entry) => entry.isFile() && (entry.name === 'config.php' || entry.name.startsWith('.cj_token_')))
-      .map((entry) => rm(resolve(apiOutput, entry.name), { force: true })));
+    await Promise.all(
+      entries
+        .filter((entry) => entry.isFile() && (entry.name === 'config.php' || entry.name.startsWith('.cj_token_')))
+        .map((entry) => rm(resolve(apiOutput, entry.name), { force: true }))
+    );
   },
 };
 
 export default defineConfig({
-  plugins: [react(), removePrivateApiFilesFromBuild],
+  plugins: [react(), apiDevServerPlugin(), removePrivateApiFilesFromBuild],
   server: {
     host: true,
     port: 3000,
-    proxy: {
-      '/api': 'http://127.0.0.1:8000',
-    },
   },
 });

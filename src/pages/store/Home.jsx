@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { HeroBanner } from '../../components/HeroBanner';
 import { CategoryPills } from '../../components/CategoryPills';
 import { ProductCard } from '../../components/ProductCard';
-import { fetchProducts } from '../../services/api';
+import { fetchStoreProducts } from '../../services/api';
 import { Sparkles, Search } from 'lucide-react';
 
 export const Home = () => {
@@ -20,7 +20,7 @@ export const Home = () => {
       setLoading(true);
       setCatalogError('');
       try {
-        const res = await fetchProducts({
+        const res = await fetchStoreProducts({
           category: activeCategory === 'All' ? '' : activeCategory,
           search: searchQuery,
         });
@@ -58,7 +58,7 @@ export const Home = () => {
           <div>
             <div className="flex items-center space-x-2 text-stone-500 text-xs font-semibold uppercase tracking-widest mb-1.5">
               <span className="w-2 h-2 rounded-full bg-stone-900"></span>
-              <span>Live CJ Catalog</span>
+              <span>Our Collection</span>
             </div>
             <h2 className="font-serif text-3xl sm:text-4xl text-stone-900 tracking-tight">
               Products
@@ -125,8 +125,8 @@ export const Home = () => {
           </div>
         ) : sortedProducts.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-stone-300">
-            <h3 className="font-serif text-xl text-stone-800 mb-2">No CJ products found</h3>
-            <p className="text-xs text-stone-500 mb-6">There are no products to show for this search.</p>
+            <h3 className="font-serif text-xl text-stone-800 mb-2">{searchQuery || activeCategory !== 'All' ? 'No listed products found' : 'Products are being prepared'}</h3>
+            <p className="text-xs text-stone-500 mb-6">{searchQuery || activeCategory !== 'All' ? 'Try another search or reset your filters.' : 'New products will appear here after they are published from the admin panel.'}</p>
             <button
               onClick={() => {
                 setActiveCategory('All');
@@ -160,12 +160,12 @@ export const Home = () => {
                 <span className="italic text-stone-400">One shipping fee per order.</span>
               </h2>
               <p className="text-stone-300 text-xs sm:text-sm leading-relaxed font-light">
-                Product prices are set to zero. The current store shipping fee is added once at checkout and can be changed by the administrator.
+                Products listed by the administrator appear here. Product prices, coupons, and the store shipping fee are managed in the admin panel.
               </p>
               <div className="grid grid-cols-2 gap-6 pt-4 border-t border-stone-800 text-xs">
                 <div>
                   <h4 className="font-semibold text-white uppercase tracking-wider">CJ catalog</h4>
-                  <p className="text-stone-400 mt-1">Only items returned by the live CJ API appear in the catalog.</p>
+                  <p className="text-stone-400 mt-1">Only products selected and published by the administrator appear here.</p>
                 </div>
                 <div>
                   <h4 className="font-semibold text-white uppercase tracking-wider">Payment review</h4>
@@ -176,7 +176,7 @@ export const Home = () => {
 
             <div className="rounded-3xl border border-stone-700 bg-stone-800/60 p-8 sm:p-12">
               <p className="text-xs uppercase tracking-widest text-stone-400">Order flow</p>
-              <p className="font-serif text-2xl text-white mt-3">Choose a CJ item, pay the displayed shipping fee, then complete checkout.</p>
+              <p className="font-serif text-2xl text-white mt-3">Choose a listed product, pay the displayed total, then complete checkout.</p>
             </div>
           </div>
         </div>

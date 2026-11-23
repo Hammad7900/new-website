@@ -9,13 +9,30 @@ export const fetchProducts = async ({ pageNum = 1, pageSize = 20, category = '',
   const params = new URLSearchParams({ pageNum: String(pageNum), pageSize: String(pageSize) });
   if (category && category !== 'All') params.set('category', category);
   if (search) params.set('search', search);
-  return request(`/api/cj-products?${params}`);
+  return request(`/api/cj-products?${params}`, { headers: adminHeaders() });
 };
 
 export const fetchProductById = async (id) => {
-  const result = await request(`/api/cj-products?id=${encodeURIComponent(id)}`);
+  const result = await request(`/api/store-products?id=${encodeURIComponent(id)}`);
   return result.data?.[0] || null;
 };
+
+export const fetchStoreProducts = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.category && params.category !== 'All') query.set('category', params.category);
+  if (params.search) query.set('search', params.search);
+  return request(`/api/store-products${query.size ? `?${query}` : ''}`);
+};
+
+export const listCJProduct = (id, price) => request('/api/store-products', {
+  method: 'POST', headers: adminHeaders(), body: JSON.stringify({ id, price }),
+});
+
+export const unlistStoreProduct = (id) => request(`/api/store-products?id=${encodeURIComponent(id)}`, {
+  method: 'DELETE', headers: adminHeaders(),
+});
+
+export const fetchAdminStoreProducts = async () => (await request('/api/store-products', { headers: adminHeaders() })).data;
 
 export const placeOrderOnCJ = (orderData) => request('/api/cj-order', {
   method: 'POST',

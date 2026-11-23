@@ -1,11 +1,10 @@
 // src/pages/admin/AdminProducts.jsx
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '../../components/admin/AdminLayout';
-import { fetchProducts } from '../../services/api';
+import { fetchProducts, fetchAdminStoreProducts, listCJProduct, unlistStoreProduct } from '../../services/api';
 import {
   RefreshCw,
   Search,
-  ExternalLink,
   CheckCircle2,
   AlertCircle,
   Sparkles,
@@ -23,20 +22,27 @@ export const AdminProducts = () => {
   const [syncMessage, setSyncMessage] = useState(null);
   const [catalogStatus, setCatalogStatus] = useState('loading');
   const [catalogError, setCatalogError] = useState('');
+  const [listedProducts, setListedProducts] = useState([]);
+  const [prices, setPrices] = useState({});
+  const [savingIds, setSavingIds] = useState([]);
+  const [catalogPage, setCatalogPage] = useState(1);
 
-  const loadCatalog = async (keywordToSearch = '', isManualSync = false) => {
+  const loadCatalog = async (keywordToSearch = '', isManualSync = false, pageToLoad = catalogPage) => {
     setCatalogStatus('loading');
     setCatalogError('');
     if (isManualSync) setRefreshing(true);
     else setLoading(true);
 
     try {
-      const q = keywordToSearch || cjKeyword || '';
+      const q = keywordToSearch === null ? cjKeyword : keywordToSearch;
       const res = await fetchProducts({
+        pageNum: pageToLoad,
         category: selectedCategory === 'All' ? '' : selectedCategory,
         search: q,
         pageSize: 30,
       });
+      const listed = await fetchAdminStoreProducts();
+      setListedProducts(listed);
 
       if (res && res.data) {
         setProducts(res.data);
@@ -71,8 +77,40 @@ export const AdminProducts = () => {
 
   const handleCjSearch = (e) => {
     e.preventDefault();
+    setCatalogPage(1);
     setSearch('');
-    loadCatalog(cjKeyword, true);
+    loadCatalog(cjKeyword, true, 1);
+  };
+
+  const handleListProduct = async (product) => {
+    const price = Number(prices[product.id] ?? product.price ?? 0);
+    if (!Number.isFinite(price) || price < 0) {
+      setSyncMessage({ type: 'error', text: 'Enter a valid selling price (zero or more).' });
+      return;
+    }
+    setSavingIds((ids) => [...ids, product.id]);
+    try {
+      const result = await listCJProduct(product.id, price);
+      setListedProducts((current) => [...current.filter((item) => item.id !== product.id), result.product]);
+      setSyncMessage({ type: 'success', text: `${product.name} is now listed at $${price.toFixed(2)}.` });
+    } catch (error) {
+      setSyncMessage({ type: 'error', text: error.message || 'Could not list this product.' });
+    } finally {
+      setSavingIds((ids) => ids.filter((id) => id !== product.id));
+    }
+  };
+
+  const handleUnlistProduct = async (product) => {
+    setSavingIds((ids) => [...ids, product.id]);
+    try {
+      await unlistStoreProduct(product.id);
+      setListedProducts((current) => current.filter((item) => item.id !== product.id));
+      setSyncMessage({ type: 'success', text: `${product.name} was removed from the storefront.` });
+    } catch (error) {
+      setSyncMessage({ type: 'error', text: error.message || 'Could not unlist this product.' });
+    } finally {
+      setSavingIds((ids) => ids.filter((id) => id !== product.id));
+    }
   };
 
   const categories = ['All', 'Watch', 'Leather', 'Audio', 'Home', 'Shoes', 'Jewelry'];
@@ -92,14 +130,14 @@ export const AdminProducts = () => {
                 {catalogStatus === 'loading' ? 'Connecting…' : catalogStatus === 'connected' ? 'Connected' : 'Connection error'}
               </span>
             </div>
-            <p className="text-xs text-stone-500 mt-0.5">Live catalog results returned by your connected CJ account.</p>
+            <p className="text-xs text-stone-500 mt-0.5">Browse CJ products here, choose your selling price, then publish selected products to your storefront.</p>
           </div>
         </div>
 
         <button
           type="button"
           disabled={refreshing || loading}
-          onClick={() => loadCatalog('', true)}
+          onClick={() => loadCatalog(null, true)}
           className="px-5 py-2.5 bg-stone-900 hover:bg-black text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs flex items-center justify-center space-x-2 disabled:opacity-50 shrink-0"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
@@ -129,10 +167,10 @@ export const AdminProducts = () => {
             <span>Direct Sourcing Engine</span>
           </div>
           <h3 className="font-serif text-xl sm:text-2xl text-white font-normal mb-2">
-            Search & Import Products Directly
+            Browse CJ and List Products
           </h3>
           <p className="text-stone-300 text-xs font-light mb-4">
-            Search the connected CJ catalog. Store product prices are currently free; customers pay the shipping fee shown at checkout.
+            Search CJ from this admin page. Products stay hidden from the website until you list them below.
           </p>
 
           <form onSubmit={handleCjSearch} className="flex gap-2">
@@ -161,8 +199,9 @@ export const AdminProducts = () => {
                 type="button"
                 onClick={() => {
                   setCjKeyword(chip);
+                  setCatalogPage(1);
                   setSearch('');
-                  loadCatalog(chip, true);
+                  loadCatalog(chip, true, 1);
                 }}
                 className="px-2.5 py-0.5 rounded-full bg-stone-800 hover:bg-stone-700 text-stone-300 text-[11px] transition-colors"
               >
@@ -182,11 +221,14 @@ export const AdminProducts = () => {
               type="button"
               onClick={() => {
                 setSelectedCategory(cat);
+                setCatalogPage(1);
                 setSearch('');
                 if (cat !== 'All') {
-                  loadCatalog(cat.toLowerCase(), true);
+                  setCjKeyword('');
+                  loadCatalog(cat.toLowerCase(), true, 1);
                 } else {
-                  loadCatalog('', true);
+                  setCjKeyword('');
+                  loadCatalog('', true, 1);
                 }
               }}
               className={`whitespace-nowrap px-3.5 py-1.5 rounded-xl text-xs font-semibold tracking-wider transition-colors ${
@@ -231,7 +273,7 @@ export const AdminProducts = () => {
                   <th className="py-3.5 px-5">Product</th>
                   <th className="py-3.5 px-4">SKU / Ref</th>
                   <th className="py-3.5 px-4">Category</th>
-                  <th className="py-3.5 px-4">Store Price</th>
+                  <th className="py-3.5 px-4">Your Price (USD)</th>
                   <th className="py-3.5 px-4">Warehouse Stock</th>
                   <th className="py-3.5 px-4">Variants</th>
                   <th className="py-3.5 px-5 text-right">Storefront</th>
@@ -276,8 +318,16 @@ export const AdminProducts = () => {
                           </span>
                         </td>
 
-                        <td className="py-4 px-4 font-semibold text-stone-900 text-sm whitespace-nowrap">
-                          FREE
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-1 text-stone-500">
+                            <span>$</span>
+                            <input
+                              type="number" min="0" step="0.01" aria-label={`Selling price for ${prod.name}`}
+                              value={prices[prod.id] ?? listedProducts.find((item) => item.id === prod.id)?.price ?? 0}
+                              onChange={(event) => setPrices((current) => ({ ...current, [prod.id]: event.target.value }))}
+                              className="w-24 rounded-lg border border-stone-200 px-2 py-1.5 text-stone-900 focus:outline-none focus:border-stone-900"
+                            />
+                          </div>
                         </td>
 
                         <td className="py-4 px-4 whitespace-nowrap">
@@ -301,15 +351,17 @@ export const AdminProducts = () => {
                         </td>
 
                         <td className="py-4 px-5 text-right whitespace-nowrap">
-                          <a
-                            href={`/product/${prod.id}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-medium transition-colors"
+                          {listedProducts.some((item) => item.id === prod.id) && <span className="mr-2 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Listed</span>}
+                          <button
+                            type="button" disabled={savingIds.includes(prod.id)}
+                            onClick={() => handleListProduct(prod)}
+                            className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-black text-white text-xs font-medium transition-colors disabled:opacity-50"
                           >
-                            <span>View</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
+                            <span>{savingIds.includes(prod.id) ? 'Saving…' : listedProducts.some((item) => item.id === prod.id) ? 'Update price' : 'List product'}</span>
+                          </button>
+                          {listedProducts.some((item) => item.id === prod.id) && (
+                            <button type="button" disabled={savingIds.includes(prod.id)} onClick={() => handleUnlistProduct(prod)} className="ml-2 px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-medium disabled:opacity-50">Unlist</button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -319,6 +371,15 @@ export const AdminProducts = () => {
           </div>
         )}
       </div>
+      {!loading && products.length > 0 && (
+        <div className="flex items-center justify-between py-4 text-xs text-stone-600">
+          <span>CJ catalog page {catalogPage} · {products.length} products shown</span>
+          <div className="flex gap-2">
+            <button type="button" disabled={catalogPage <= 1 || refreshing} onClick={() => { const page = catalogPage - 1; setCatalogPage(page); loadCatalog(null, true, page); }} className="rounded-lg border border-stone-200 px-3 py-2 disabled:opacity-40">Previous</button>
+            <button type="button" disabled={products.length < 30 || refreshing} onClick={() => { const page = catalogPage + 1; setCatalogPage(page); loadCatalog(null, true, page); }} className="rounded-lg border border-stone-200 px-3 py-2 disabled:opacity-40">Next</button>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };
