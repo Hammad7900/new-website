@@ -1,5 +1,5 @@
 // src/config/constants.js
-// Central configuration for brand, pricing formula, and defaults
+// Central configuration for brand, pricing formula, Whop payment, and defaults
 
 export const BRAND = {
   name: 'AURA Atelier & Goods',
@@ -14,6 +14,12 @@ export const PRICING = {
   compareMultiplier: 1.4,
   minRetailPrice: 0,
   shippingCost: 1.00,
+};
+
+export const WHOP = {
+  planId: 'plan_Nw9OfcyHAA0zJ',
+  checkoutUrl: 'https://whop.com/checkout/plan_Nw9OfcyHAA0zJ',
+  productUrl: 'https://whop.com/dev-portfolio-services-950777/order-payment-0e/',
 };
 
 export const DEFAULT_SEARCH_KEYWORD = '';

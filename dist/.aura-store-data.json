@@ -1,6 +1,14 @@
 {
   "shippingCost": 1,
-  "coupons": [],
+  "coupons": [
+    {
+      "code": "ALI100",
+      "type": "percentage",
+      "value": 100,
+      "expiry": "2026-11-24",
+      "createdAt": "2026-11-23T08:23:18.364Z"
+    }
+  ],
   "orders": [],
   "products": [
     {
