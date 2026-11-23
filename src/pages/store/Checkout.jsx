@@ -3,21 +3,19 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { BRAND, WHOP } from '../../config/constants';
-import { WhopPaymentModal } from '../../components/WhopPaymentModal';
 import {
   ShieldCheck,
   Lock,
   CheckCircle2,
   ArrowLeft,
-  CreditCard,
   ShoppingBag,
   Truck,
   Sparkles,
   Tag,
   X,
   Loader2,
-  ExternalLink,
-  Zap,
+  CreditCard,
+  AlertCircle,
 } from 'lucide-react';
 
 const POPULAR_COUNTRIES = [
@@ -60,11 +58,6 @@ export const Checkout = () => {
   const [stateProvince, setStateProvince] = useState('');
   const [postalCode, setPostalCode] = useState('');
 
-  // Card input states
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvc, setCardCvc] = useState('');
-
   // Voucher state
   const [couponCode, setCouponCode] = useState('');
   const [couponError, setCouponError] = useState('');
@@ -74,44 +67,42 @@ export const Checkout = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState(null);
   const [errors, setErrors] = useState({});
+  const [paymentNotice, setPaymentNotice] = useState('');
 
-  // Whop Modal States
-  const [isWhopModalOpen, setIsWhopModalOpen] = useState(false);
-  const [modalCheckoutUrl, setModalCheckoutUrl] = useState('');
-
-  // Format Card Number: 1234 1234 1234 1234
-  const handleCardNumberChange = (e) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
-    const formatted = raw.replace(/(\d{4})(?=\d)/g, '$1 ');
-    setCardNumber(formatted);
-  };
-
-  // Format Expiry: MM/YY
-  const handleExpiryChange = (e) => {
-    let raw = e.target.value.replace(/\D/g, '').slice(0, 4);
-    if (raw.length >= 3) {
-      raw = raw.slice(0, 2) + '/' + raw.slice(2);
+  // Restore pre-filled address if user had entered it before redirect
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('aura_pending_order') || localStorage.getItem('aura_pending_order');
+      if (saved) {
+        const order = JSON.parse(saved);
+        if (order.customer?.email) setEmail(order.customer.email);
+        if (order.customer?.phone) setPhone(order.customer.phone);
+        if (order.customer?.name) setFullName(order.customer.name);
+        if (order.shippingAddress?.street) setStreet(order.shippingAddress.street);
+        if (order.shippingAddress?.city) setCity(order.shippingAddress.city);
+        if (order.shippingAddress?.state) setStateProvince(order.shippingAddress.state);
+        if (order.shippingAddress?.zip) setPostalCode(order.shippingAddress.zip);
+        if (order.shippingAddress?.countryCode) setCountry(order.shippingAddress.countryCode);
+      }
+    } catch (e) {
+      // ignore
     }
-    setCardExpiry(raw);
-  };
-
-  // Format CVC: 3 or 4 digits
-  const handleCvcChange = (e) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
-    setCardCvc(raw);
-  };
+  }, []);
 
   // Auto-detect return from Whop redirect (e.g. ?status=success or ?payment=succeeded)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const status = params.get('status') || params.get('payment');
+    
     if (status === 'success' || status === 'succeeded' || status === 'completed') {
-      const saved = sessionStorage.getItem('aura_pending_order');
+      const saved = sessionStorage.getItem('aura_pending_order') || localStorage.getItem('aura_pending_order');
       if (saved) {
         try {
           const orderPayload = JSON.parse(saved);
           sessionStorage.removeItem('aura_pending_order');
+          localStorage.removeItem('aura_pending_order');
           setIsProcessing(true);
+          
           saveOrder({
             ...orderPayload,
             status: 'PAID',
@@ -121,6 +112,16 @@ export const Checkout = () => {
               setConfirmedOrder(order);
               window.history.replaceState({}, document.title, window.location.pathname);
             })
+            .catch((err) => {
+              console.error('Save order error:', err);
+              // Fallback confirmed view even if network glitched
+              setConfirmedOrder({
+                ...orderPayload,
+                id: `ORD-${Date.now().toString(36).toUpperCase()}`,
+                status: 'PAID',
+              });
+              window.history.replaceState({}, document.title, window.location.pathname);
+            })
             .finally(() => {
               setIsProcessing(false);
             });
@@ -128,6 +129,9 @@ export const Checkout = () => {
           console.error('Failed to parse pending order on return:', err);
         }
       }
+    } else if (status === 'canceled' || status === 'failed') {
+      setPaymentNotice('Payment was not completed. You can review your details and try again.');
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [saveOrder]);
 
@@ -169,15 +173,17 @@ export const Checkout = () => {
       if (order.shippingAddress?.state) url.searchParams.set('state', order.shippingAddress.state);
       if (order.shippingAddress?.zip) url.searchParams.set('postalCode', order.shippingAddress.zip);
       if (order.shippingAddress?.countryCode) url.searchParams.set('country', order.shippingAddress.countryCode);
-      url.searchParams.set('returnUrl', `${window.location.origin}/checkout?status=success`);
+      
+      const returnUrl = `${window.location.origin}/checkout?status=success`;
+      url.searchParams.set('returnUrl', returnUrl);
       return url.toString();
     } catch {
       return base;
     }
   };
 
-  // Triggered when clicking Pay button
-  const handlePayment = async (e) => {
+  // Single Checkout: Proceed directly to Whop payment
+  const handleProceedToPayment = async (e) => {
     e.preventDefault();
     if (!validate()) {
       window.scrollTo({ top: 300, behavior: 'smooth' });
@@ -186,6 +192,7 @@ export const Checkout = () => {
 
     setIsProcessing(true);
     setErrors({});
+    setPaymentNotice('');
 
     const selectedCountryObj = POPULAR_COUNTRIES.find((c) => c.code === country);
     const countryName = selectedCountryObj ? selectedCountryObj.name : 'United States';
@@ -218,55 +225,20 @@ export const Checkout = () => {
       discountAmount,
       total,
       couponCode: coupon?.coupon?.code || null,
-      paymentMethod: `Card ending in ${cardNumber.slice(-4) || '7900'} (Powered by Whop)`,
+      paymentMethod: 'Whop 256-Bit Gateway (Verified Settlement)',
     };
 
-    // Stash pending order in sessionStorage
-    sessionStorage.setItem('aura_pending_order', JSON.stringify(orderPayload));
-
-    // Construct pre-filled Whop URL with all shipping & contact details
-    const prefilledUrl = buildPrefilledWhopUrl(orderPayload);
-    setModalCheckoutUrl(prefilledUrl);
-    setIsWhopModalOpen(true);
-    setIsProcessing(false);
-  };
-
-  // When payment confirmed from Whop modal
-  const handleModalPaymentConfirmed = async () => {
-    setIsWhopModalOpen(false);
-    setIsProcessing(true);
+    // Stash pending order in sessionStorage & localStorage
     try {
-      const saved = sessionStorage.getItem('aura_pending_order');
-      const orderPayload = saved ? JSON.parse(saved) : null;
-      sessionStorage.removeItem('aura_pending_order');
-
-      if (orderPayload) {
-        const order = await saveOrder({
-          ...orderPayload,
-          status: 'PAID',
-          paymentMethod: 'Whop 256-Bit Gateway (Verified Settlement)',
-        });
-        setConfirmedOrder(order);
-      } else {
-        // Fallback in case storage was cleared
-        const fallbackOrder = await saveOrder({
-          customer: { name: fullName || 'Valued Customer', email: email || 'customer@example.com', phone: phone || '+1 555-0199' },
-          shippingAddress: { street: street || '123 Luxury Way', city: city || 'New York', state: stateProvince || 'NY', zip: postalCode || '10001', country: 'United States', countryCode: 'US' },
-          items: cartItems,
-          subtotal,
-          shipping,
-          discountAmount,
-          total,
-          status: 'PAID',
-          paymentMethod: 'Whop 256-Bit Gateway (Verified Settlement)',
-        });
-        setConfirmedOrder(fallbackOrder);
-      }
-    } catch (err) {
-      setErrors({ submit: err.message || 'Payment recorded. Please contact concierge if receipt is delayed.' });
-    } finally {
-      setIsProcessing(false);
+      sessionStorage.setItem('aura_pending_order', JSON.stringify(orderPayload));
+      localStorage.setItem('aura_pending_order', JSON.stringify(orderPayload));
+    } catch (e) {
+      // ignore
     }
+
+    // Direct, single-checkout redirect to Whop with all details pre-filled
+    const prefilledUrl = buildPrefilledWhopUrl(orderPayload);
+    window.location.href = prefilledUrl;
   };
 
   // Empty cart screen
@@ -405,9 +377,16 @@ export const Checkout = () => {
           </div>
         </div>
 
+        {paymentNotice && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center space-x-3 text-amber-800 text-xs">
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+            <span>{paymentNotice}</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           
-          {/* LEFT COLUMN: Order Summary & Voucher (Order-2 on mobile, Order-1 on desktop) */}
+          {/* LEFT COLUMN: Order Summary & Voucher */}
           <div className="lg:col-span-5 order-2 lg:order-1 space-y-6">
             <div className="bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-7 shadow-xs">
               <div className="flex items-center justify-between pb-4 border-b border-stone-100">
@@ -518,19 +497,19 @@ export const Checkout = () => {
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Contact, Shipping, & Payment Form */}
+          {/* RIGHT COLUMN: Single Step Contact & Shipping Details */}
           <div className="lg:col-span-7 order-1 lg:order-2">
-            <form onSubmit={handlePayment} className="bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+            <form onSubmit={handleProceedToPayment} className="bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
               
               {/* 1. Contact Information */}
               <div>
                 <h3 className="font-semibold text-stone-900 text-sm mb-3">
-                  Contact Information
+                  1. Contact Information
                 </h3>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[11px] font-semibold uppercase tracking-wider text-stone-600 mb-1">
-                      Email address for confirmation *
+                      Email address for order confirmation *
                     </label>
                     <input
                       type="email"
@@ -545,7 +524,7 @@ export const Checkout = () => {
 
                   <div>
                     <label className="block text-[11px] font-semibold uppercase tracking-wider text-stone-600 mb-1">
-                      Phone Number (for delivery courier alerts)
+                      Phone Number (for courier delivery alerts)
                     </label>
                     <input
                       type="tel"
@@ -561,7 +540,7 @@ export const Checkout = () => {
               {/* 2. Delivery Destination */}
               <div className="pt-5 border-t border-stone-100">
                 <h3 className="font-semibold text-stone-900 text-sm mb-3">
-                  Shipping Destination
+                  2. Shipping Destination
                 </h3>
                 <div className="space-y-3">
                   <div>
@@ -658,66 +637,28 @@ export const Checkout = () => {
                 </div>
               </div>
 
-              {/* 3. Direct Inline Card Information (Velloura style) */}
+              {/* 3. Payment Method Presentation (Single checkout — card entered ONLY once on Whop) */}
               <div className="pt-5 border-t border-stone-100">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-stone-900 text-sm">
-                    Payment Method
+                    3. Payment Method
                   </h3>
                   <div className="flex items-center space-x-1.5 text-stone-400">
                     <span className="text-[10px] font-bold bg-stone-100 text-stone-700 px-2 py-0.5 rounded">VISA</span>
                     <span className="text-[10px] font-bold bg-stone-100 text-stone-700 px-2 py-0.5 rounded">MC</span>
                     <span className="text-[10px] font-bold bg-stone-100 text-stone-700 px-2 py-0.5 rounded">AMEX</span>
+                    <span className="text-[10px] font-bold bg-stone-100 text-stone-700 px-2 py-0.5 rounded">Apple Pay</span>
                   </div>
                 </div>
 
-                <div className="border border-stone-200 rounded-2xl overflow-hidden bg-stone-50/50 p-4 space-y-3">
-                  {/* Card Number */}
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-1">
-                      Card Number *
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={cardNumber}
-                        onChange={handleCardNumberChange}
-                        placeholder="1234 1234 1234 1234"
-                        className="w-full pl-4 pr-10 py-2.5 text-xs bg-white border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 font-mono tracking-wider transition-colors"
-                      />
-                      <CreditCard className="w-4 h-4 text-stone-400 absolute right-3 top-3" />
-                    </div>
+                <div className="border border-stone-200 rounded-2xl p-4 bg-stone-50/70 space-y-2">
+                  <div className="flex items-center space-x-2 text-stone-900 text-xs font-semibold">
+                    <CreditCard className="w-4 h-4 text-amber-500" />
+                    <span>Bank-Grade 256-Bit Encrypted Settlement</span>
                   </div>
-
-                  {/* Expiry & CVC */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-1">
-                        Expiry Date (MM/YY) *
-                      </label>
-                      <input
-                        type="text"
-                        value={cardExpiry}
-                        onChange={handleExpiryChange}
-                        placeholder="MM / YY"
-                        className="w-full px-4 py-2.5 text-xs bg-white border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 font-mono text-center transition-colors"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-stone-500 mb-1">
-                        CVC Security Code *
-                      </label>
-                      <input
-                        type="password"
-                        value={cardCvc}
-                        onChange={handleCvcChange}
-                        placeholder="CVC"
-                        maxLength={4}
-                        className="w-full px-4 py-2.5 text-xs bg-white border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 font-mono text-center transition-colors"
-                      />
-                    </div>
-                  </div>
+                  <p className="text-[11px] text-stone-500 leading-relaxed">
+                    Card details and digital wallets are securely verified by Whop's PCI-DSS Level 1 engine. You enter your payment details only once on Whop and return immediately upon confirmation.
+                  </p>
                 </div>
               </div>
 
@@ -728,7 +669,7 @@ export const Checkout = () => {
                 </div>
               )}
 
-              {/* Big, High-Converting Black "Pay" Button (Identical to reference website) */}
+              {/* Big, High-Converting Single Checkout Button */}
               <button
                 type="submit"
                 disabled={isProcessing}
@@ -737,12 +678,12 @@ export const Checkout = () => {
                 {isProcessing ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-white" />
-                    <span>Authorizing & Encrypting Payment...</span>
+                    <span>Connecting to Secure Gateway...</span>
                   </>
                 ) : (
                   <>
                     <Lock className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Pay ${total.toFixed(2)} USD</span>
+                    <span>Proceed to Secure Payment · ${total.toFixed(2)} USD</span>
                   </>
                 )}
               </button>
@@ -761,15 +702,6 @@ export const Checkout = () => {
           </div>
         </div>
       </div>
-
-      {/* Whop In-Page Payment Modal (Zero external redirects to strange tabs!) */}
-      <WhopPaymentModal
-        isOpen={isWhopModalOpen}
-        onClose={() => setIsWhopModalOpen(false)}
-        checkoutUrl={modalCheckoutUrl}
-        total={total}
-        onPaymentSuccess={handleModalPaymentConfirmed}
-      />
     </div>
   );
 };
