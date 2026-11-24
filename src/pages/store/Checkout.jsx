@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { BRAND, WHOP } from '../../config/constants';
+import { ALL_COUNTRIES } from '../../data/countries';
 import {
   ShieldCheck,
   Lock,
@@ -17,21 +18,6 @@ import {
   CreditCard,
   AlertCircle,
 } from 'lucide-react';
-
-const POPULAR_COUNTRIES = [
-  { code: 'US', name: 'United States' },
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'AU', name: 'Australia' },
-  { code: 'PK', name: 'Pakistan' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
-  { code: 'IT', name: 'Italy' },
-  { code: 'ES', name: 'Spain' },
-  { code: 'NL', name: 'Netherlands' },
-  { code: 'AE', name: 'United Arab Emirates' },
-  { code: 'SA', name: 'Saudi Arabia' },
-];
 
 export const Checkout = () => {
   const {
@@ -166,14 +152,59 @@ export const Checkout = () => {
     const base = WHOP.checkoutUrl || 'https://whop.com/checkout/plan_Nw9OfcyHAA0zJ';
     try {
       const url = new URL(base);
-      if (order.customer?.email) url.searchParams.set('email', order.customer.email);
-      if (order.customer?.name) url.searchParams.set('name', order.customer.name);
-      if (order.shippingAddress?.street) url.searchParams.set('addressLine1', order.shippingAddress.street);
-      if (order.shippingAddress?.city) url.searchParams.set('city', order.shippingAddress.city);
-      if (order.shippingAddress?.state) url.searchParams.set('state', order.shippingAddress.state);
-      if (order.shippingAddress?.zip) url.searchParams.set('postalCode', order.shippingAddress.zip);
-      if (order.shippingAddress?.countryCode) url.searchParams.set('country', order.shippingAddress.countryCode);
-      
+      const email = order.customer?.email || '';
+      const name = order.customer?.name || '';
+      const phone = order.customer?.phone || '';
+      const street = order.shippingAddress?.street || '';
+      const city = order.shippingAddress?.city || '';
+      const state = order.shippingAddress?.state || '';
+      const zip = order.shippingAddress?.zip || '';
+      const countryCode = (order.shippingAddress?.countryCode || 'US').toUpperCase();
+
+      if (email) {
+        url.searchParams.set('email', email);
+      }
+      if (name) {
+        url.searchParams.set('name', name);
+        url.searchParams.set('shipping.name', name);
+        url.searchParams.set('shipping_name', name);
+      }
+      if (phone) {
+        url.searchParams.set('phone', phone);
+        url.searchParams.set('shipping.phone', phone);
+      }
+      if (street) {
+        url.searchParams.set('shipping.address.line1', street);
+        url.searchParams.set('shipping_address_line1', street);
+        url.searchParams.set('address.line1', street);
+        url.searchParams.set('addressLine1', street);
+      }
+      if (city) {
+        url.searchParams.set('shipping.address.city', city);
+        url.searchParams.set('shipping_city', city);
+        url.searchParams.set('address.city', city);
+        url.searchParams.set('city', city);
+      }
+      if (state) {
+        url.searchParams.set('shipping.address.state', state);
+        url.searchParams.set('shipping_state', state);
+        url.searchParams.set('address.state', state);
+        url.searchParams.set('state', state);
+      }
+      if (zip) {
+        url.searchParams.set('shipping.address.postal_code', zip);
+        url.searchParams.set('shipping_postal_code', zip);
+        url.searchParams.set('address.postal_code', zip);
+        url.searchParams.set('postalCode', zip);
+        url.searchParams.set('zip', zip);
+      }
+      if (countryCode) {
+        url.searchParams.set('shipping.address.country', countryCode);
+        url.searchParams.set('shipping_country', countryCode);
+        url.searchParams.set('address.country', countryCode);
+        url.searchParams.set('country', countryCode);
+      }
+
       const returnUrl = `${window.location.origin}/checkout?status=success`;
       url.searchParams.set('returnUrl', returnUrl);
       return url.toString();
@@ -194,7 +225,7 @@ export const Checkout = () => {
     setErrors({});
     setPaymentNotice('');
 
-    const selectedCountryObj = POPULAR_COUNTRIES.find((c) => c.code === country);
+    const selectedCountryObj = ALL_COUNTRIES.find((c) => c.code === country);
     const countryName = selectedCountryObj ? selectedCountryObj.name : 'United States';
 
     const orderPayload = {
@@ -479,8 +510,15 @@ export const Checkout = () => {
                     <span>-${discountAmount.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-stone-600">
-                  <span>Shipping</span>
+                <div className="flex justify-between items-center text-stone-600">
+                  <div className="flex items-center space-x-1.5">
+                    <span>Shipping</span>
+                    {cartItems.reduce((acc, it) => acc + it.quantity, 0) > 1 && (
+                      <span className="text-[10px] bg-stone-100 text-stone-700 px-1.5 py-0.5 rounded font-medium">
+                        Tiered ({cartItems.reduce((acc, it) => acc + it.quantity, 0)} items)
+                      </span>
+                    )}
+                  </div>
                   <span>{shipping === 0 ? <span className="text-emerald-600 font-semibold">Complimentary</span> : `$${shipping.toFixed(2)}`}</span>
                 </div>
                 <div className="pt-3 border-t border-stone-100 flex justify-between items-center text-sm font-semibold text-stone-900">
@@ -552,7 +590,7 @@ export const Checkout = () => {
                       onChange={(e) => setCountry(e.target.value)}
                       className="w-full px-4 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 transition-colors cursor-pointer"
                     >
-                      {POPULAR_COUNTRIES.map((c) => (
+                      {ALL_COUNTRIES.map((c) => (
                         <option key={c.code} value={c.code}>
                           {c.name} ({c.code})
                         </option>

@@ -3,16 +3,23 @@ import React, { useState, useEffect } from 'react';
 import { HeroBanner } from '../../components/HeroBanner';
 import { CategoryPills } from '../../components/CategoryPills';
 import { ProductCard } from '../../components/ProductCard';
-import { fetchStoreProducts } from '../../services/api';
+import { fetchStoreProducts, fetchCollections } from '../../services/api';
 import { Sparkles, Search } from 'lucide-react';
 
 export const Home = () => {
   const [products, setProducts] = useState([]);
+  const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [catalogError, setCatalogError] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('popular');
+
+  useEffect(() => {
+    fetchCollections()
+      .then((cols) => setCollections(cols || []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -22,6 +29,7 @@ export const Home = () => {
       try {
         const res = await fetchStoreProducts({
           category: activeCategory === 'All' ? '' : activeCategory,
+          collection: activeCategory === 'All' ? '' : activeCategory,
           search: searchQuery,
         });
         if (isMounted && res.data) {
@@ -29,7 +37,7 @@ export const Home = () => {
         }
       } catch (e) {
         console.error('Failed to load products', e);
-        if (isMounted) setCatalogError(e.message || 'Could not load products from CJ.');
+        if (isMounted) setCatalogError(e.message || 'Could not load products from the catalog.');
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -39,6 +47,17 @@ export const Home = () => {
       isMounted = false;
     };
   }, [activeCategory, searchQuery]);
+
+  const collectionCounts = React.useMemo(() => {
+    const counts = { All: products.length };
+    products.forEach((p) => {
+      const slug = (p.collectionSlug || '').toLowerCase();
+      if (slug) {
+        counts[slug] = (counts[slug] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [products]);
 
   const sortedProducts = [...products].sort((a, b) => {
     if (sortBy === 'price-asc') return a.price - b.price;
@@ -98,6 +117,8 @@ export const Home = () => {
           <CategoryPills
             activeCategory={activeCategory}
             onSelectCategory={setActiveCategory}
+            collections={collections}
+            counts={collectionCounts}
           />
         </div>
 
@@ -153,30 +174,30 @@ export const Home = () => {
             <div className="space-y-6">
               <span className="text-amber-400 text-xs font-semibold uppercase tracking-widest flex items-center space-x-2">
                 <Sparkles className="w-3.5 h-3.5" />
-              <span>Shipping and checkout</span>
+                <span>Atelier Standards</span>
               </span>
               <h2 className="font-serif text-3xl sm:text-5xl font-normal leading-tight text-white">
-                Free products. <br />
-                <span className="italic text-stone-400">One shipping fee per order.</span>
+                Bespoke Curation. <br />
+                <span className="italic text-stone-400">Direct global insured dispatch.</span>
               </h2>
               <p className="text-stone-300 text-xs sm:text-sm leading-relaxed font-light">
-                Products listed by the administrator appear here. Product prices, coupons, and the store shipping fee are managed in the admin panel.
+                Each piece in our catalog is rigorously verified for material purity, mechanical precision, and enduring elegance.
               </p>
               <div className="grid grid-cols-2 gap-6 pt-4 border-t border-stone-800 text-xs">
                 <div>
-                  <h4 className="font-semibold text-white uppercase tracking-wider">CJ catalog</h4>
-                  <p className="text-stone-400 mt-1">Only products selected and published by the administrator appear here.</p>
+                  <h4 className="font-semibold text-white uppercase tracking-wider">Direct Origin</h4>
+                  <p className="text-stone-400 mt-1">Dispatched directly from origin master ateliers with trackable transit.</p>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-white uppercase tracking-wider">Payment review</h4>
-                  <p className="text-stone-400 mt-1">An administrator verifies Whop payment before sending an order to CJ.</p>
+                  <h4 className="font-semibold text-white uppercase tracking-wider">Secure Settlement</h4>
+                  <p className="text-stone-400 mt-1">Encrypted 256-bit payment authorization powered by Whop.</p>
                 </div>
               </div>
             </div>
 
             <div className="rounded-3xl border border-stone-700 bg-stone-800/60 p-8 sm:p-12">
-              <p className="text-xs uppercase tracking-widest text-stone-400">Order flow</p>
-              <p className="font-serif text-2xl text-white mt-3">Choose a listed product, pay the displayed total, then complete checkout.</p>
+              <p className="text-xs uppercase tracking-widest text-amber-400 font-bold">Client Assurance</p>
+              <p className="font-serif text-2xl text-white mt-3">Worldwide express courier shipping with dedicated concierge support.</p>
             </div>
           </div>
         </div>

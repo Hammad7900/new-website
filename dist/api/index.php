@@ -31,9 +31,30 @@ function sendJson($status, $payload) {
 
 function loadStoreState() {
     $path = dirname(__DIR__) . '/.aura-store-data.json';
-    if (!is_file($path)) return ['shippingCost' => 1.00, 'coupons' => [], 'orders' => [], 'products' => []];
+    $defaults = [
+        'shippingCost' => 1.00,
+        'shippingRules' => [
+            'baseRate' => 1.0,
+            'additionalItemRate' => 1.0,
+            'tier2' => 2.0,
+            'tier3' => 3.0,
+            'tier4Plus' => 4.0,
+        ],
+        'collections' => [
+            ['id' => 'col-jewelry', 'name' => 'Fine Jewelry', 'slug' => 'jewelry', 'description' => 'Curated body chains, necklaces, and delicate luxury accents'],
+            ['id' => 'col-accessories', 'name' => 'Designer Accessories', 'slug' => 'accessories', 'description' => 'Atelier tech cases, daily essentials, and modern accents'],
+            ['id' => 'col-watches', 'name' => 'Horology & Watches', 'slug' => 'watches', 'description' => 'Precision luxury timepieces and bespoke straps'],
+            ['id' => 'col-wigs', 'name' => 'Virgin Hair & Wigs', 'slug' => 'wigs', 'description' => 'Handcrafted virgin human hair and couture styling'],
+        ],
+        'adminPassword' => '',
+        'adminAuthRequired' => false,
+        'coupons' => [],
+        'orders' => [],
+        'products' => [],
+    ];
+    if (!is_file($path)) return $defaults;
     $state = json_decode(@file_get_contents($path), true);
-    return is_array($state) ? array_merge(['shippingCost' => 1.00, 'coupons' => [], 'orders' => [], 'products' => []], $state) : ['shippingCost' => 1.00, 'coupons' => [], 'orders' => [], 'products' => []];
+    return is_array($state) ? array_merge($defaults, $state) : $defaults;
 }
 
 function mapCjProductDetail($item, $productId, $price) {
@@ -186,18 +207,107 @@ function getAccessToken($apiKey) {
     return null;
 }
 
-if (str_ends_with($uri, '/admin-auth')) {
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') sendJson(405, ['success' => false, 'error' => 'POST required.']);
-    if ($ADMIN_AUTH_DISABLED) sendJson(200, ['success' => true, 'passwordRequired' => false]);
+if (str_ends_with($uri, '/admin-auth') || $endpoint === 'admin-auth') {
+    $state = loadStoreState();
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        sendJson(200, [
+            'success' => true,
+            'passwordRequired' => !empty($state['adminAuthRequired']),
+            'hasPassword' => !empty($state['adminPassword']),
+        ]);
+    }
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') sendJson(405, ['success' => false, 'error' => 'GET or POST required.']);
+    
     $body = json_decode(file_get_contents('php://input'), true) ?: [];
-    if (!$ADMIN_PASSWORD || !isset($body['password']) || !hash_equals($ADMIN_PASSWORD, (string)$body['password'])) {
+    $action = $body['action'] ?? '';
+
+    if ($action === 'change' || $action === 'set') {
+        $newPass = trim((string)($body['newPassword'] ?? ''));
+        $requireAuth = isset($body['requireAuth']) ? (bool)$body['requireAuth'] : true;
+
+        if (!empty($state['adminAuthRequired']) && !empty($state['adminPassword']) && $action === 'change') {
+            $curr = (string)($body['currentPassword'] ?? '');
+            if (!hash_equals((string)$state['adminPassword'], $curr)) {
+                sendJson(401, ['success' => false, 'error' => 'Current password does not match.']);
+            }
+        }
+
+        $saved = saveStoreState([
+            'adminPassword' => $newPass,
+            'adminAuthRequired' => ($requireAuth && !empty($newPass))
+        ]);
+        sendJson(200, [
+            'success' => true,
+            'message' => 'Admin security settings updated successfully.',
+            'passwordRequired' => !empty($saved['adminAuthRequired'])
+        ]);
+    }
+
+    if (empty($state['adminAuthRequired']) || empty($state['adminPassword'])) {
+        sendJson(200, ['success' => true, 'passwordRequired' => false]);
+    }
+
+    $provided = (string)($body['password'] ?? '');
+    if (!hash_equals((string)$state['adminPassword'], $provided)) {
         sendJson(401, ['success' => false, 'error' => 'Incorrect administrator password.']);
     }
     sendJson(200, ['success' => true]);
 }
 
+// Collections Endpoint
+if (str_ends_with($uri, '/collections') || $endpoint === 'collections') {
+    $state = loadStoreState();
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        sendJson(200, ['success' => true, 'collections' => $state['collections'] ?? []]);
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        $name = trim((string)($body['name'] ?? ''));
+        $slug = trim((string)($body['slug'] ?? ''));
+        if ($slug === '' && $name !== '') {
+            $slug = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $name));
+        }
+        $desc = trim((string)($body['description'] ?? ''));
+
+        if ($name === '' || $slug === '') {
+            sendJson(400, ['success' => false, 'error' => 'Collection name and slug are required.']);
+        }
+
+        $cols = $state['collections'] ?? [];
+        $id = !empty($body['id']) ? $body['id'] : ('col-' . uniqid());
+        $found = false;
+        foreach ($cols as &$c) {
+            if (($c['id'] ?? '') === $id || ($c['slug'] ?? '') === $slug) {
+                $c['name'] = $name;
+                $c['slug'] = $slug;
+                $c['description'] = $desc;
+                $found = true;
+                break;
+            }
+        }
+        if (!$found) {
+            $cols[] = ['id' => $id, 'name' => $name, 'slug' => $slug, 'description' => $desc];
+        }
+        $saved = saveStoreState(['collections' => $cols]);
+        sendJson(200, ['success' => true, 'collections' => $saved['collections']]);
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+        $id = trim((string)($_GET['id'] ?? ''));
+        $slug = trim((string)($_GET['slug'] ?? ''));
+        $cols = array_values(array_filter($state['collections'] ?? [], function($c) use ($id, $slug) {
+            return ($c['id'] ?? '') !== $id && ($c['slug'] ?? '') !== $slug;
+        }));
+        $saved = saveStoreState(['collections' => $cols]);
+        sendJson(200, ['success' => true, 'collections' => $saved['collections']]);
+    }
+
+    sendJson(405, ['success' => false, 'error' => 'GET, POST, or DELETE required.']);
+}
+
 // The public storefront reads only products explicitly listed by the admin.
-if (str_ends_with($uri, '/store-products')) {
+if (str_ends_with($uri, '/store-products') || $endpoint === 'store-products') {
     $state = loadStoreState();
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $products = array_values($state['products']);
@@ -205,10 +315,36 @@ if (str_ends_with($uri, '/store-products')) {
         if ($id !== '') $products = array_values(array_filter($products, function($product) use ($id) { return (string)($product['id'] ?? '') === $id; }));
         $search = strtolower(trim((string)($_GET['search'] ?? '')));
         $category = strtolower(trim((string)($_GET['category'] ?? '')));
+        $collection = strtolower(trim((string)($_GET['collection'] ?? '')));
         if ($search !== '') $products = array_values(array_filter($products, function($product) use ($search) { return strpos(strtolower(($product['name'] ?? '') . ' ' . ($product['sku'] ?? '')), $search) !== false; }));
         if ($category !== '' && $category !== 'all') $products = array_values(array_filter($products, function($product) use ($category) { return strpos(strtolower($product['category'] ?? ''), $category) !== false; }));
+        if ($collection !== '' && $collection !== 'all') $products = array_values(array_filter($products, function($product) use ($collection) {
+            return strtolower($product['collectionSlug'] ?? '') === $collection || strpos(strtolower($product['category'] ?? ''), $collection) !== false;
+        }));
         sendJson(200, ['success' => true, 'data' => $products, 'total' => count($products), 'source' => 'admin_listed_products']);
     }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'PATCH') {
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        $productId = trim((string)($body['id'] ?? ''));
+        if ($productId === '') sendJson(400, ['success' => false, 'error' => 'Product ID is required.']);
+
+        $updatedProduct = null;
+        $products = $state['products'] ?? [];
+        foreach ($products as &$p) {
+            if ((string)($p['id'] ?? '') === $productId) {
+                if (isset($body['collectionSlug'])) $p['collectionSlug'] = trim((string)$body['collectionSlug']);
+                if (isset($body['price']) && is_numeric($body['price']) && (float)$body['price'] >= 0) $p['price'] = round((float)$body['price'], 2);
+                if (!empty($body['name'])) $p['name'] = trim((string)$body['name']);
+                $updatedProduct = $p;
+                break;
+            }
+        }
+        if (!$updatedProduct) sendJson(404, ['success' => false, 'error' => 'Product not found.']);
+        saveStoreState(['products' => $products]);
+        sendJson(200, ['success' => true, 'product' => $updatedProduct]);
+    }
+
     if (!adminPasswordIsValid($ADMIN_PASSWORD)) sendJson(401, ['success' => false, 'error' => 'Administrator authentication required.']);
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $body = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -234,22 +370,61 @@ if (str_ends_with($uri, '/store-products')) {
         $state = saveStoreState(['products' => $products]);
         sendJson(200, ['success' => true, 'data' => $products]);
     }
-    sendJson(405, ['success' => false, 'error' => 'GET, POST, or DELETE required.']);
+    sendJson(405, ['success' => false, 'error' => 'GET, POST, PATCH, or DELETE required.']);
 }
 
-if (str_ends_with($uri, '/store-settings')) {
+if (str_ends_with($uri, '/store-settings') || $endpoint === 'store-settings') {
+    $state = loadStoreState();
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-        $state = loadStoreState();
-        sendJson(200, ['success' => true, 'shippingCost' => (float)$state['shippingCost']]);
+        sendJson(200, [
+            'success' => true,
+            'shippingCost' => (float)($state['shippingCost'] ?? 1.00),
+            'shippingRules' => $state['shippingRules'] ?? [
+                'baseRate' => 1.0,
+                'additionalItemRate' => 1.0,
+                'tier2' => 2.0,
+                'tier3' => 3.0,
+                'tier4Plus' => 4.0,
+            ],
+            'adminAuthRequired' => !empty($state['adminAuthRequired']),
+            'hasPassword' => !empty($state['adminPassword']),
+        ]);
     }
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') sendJson(405, ['success' => false, 'error' => 'GET or POST required.']);
-    if (!adminPasswordIsValid($ADMIN_PASSWORD)) sendJson(401, ['success' => false, 'error' => 'Administrator authentication required.']);
+    
     $body = json_decode(file_get_contents('php://input'), true) ?: [];
-    $amount = filter_var($body['shippingCost'] ?? null, FILTER_VALIDATE_FLOAT);
-    if ($amount === false || $amount < 0 || $amount > 10000) sendJson(400, ['success' => false, 'error' => 'Shipping fee must be between 0 and 10000.']);
+    $changes = [];
+
+    if (isset($body['shippingCost'])) {
+        $amount = filter_var($body['shippingCost'], FILTER_VALIDATE_FLOAT);
+        if ($amount !== false && $amount >= 0) {
+            $changes['shippingCost'] = round($amount, 2);
+        }
+    }
+    if (isset($body['shippingRules']) && is_array($body['shippingRules'])) {
+        $changes['shippingRules'] = [
+            'baseRate' => (float)($body['shippingRules']['baseRate'] ?? 1.0),
+            'additionalItemRate' => (float)($body['shippingRules']['additionalItemRate'] ?? 1.0),
+            'tier2' => (float)($body['shippingRules']['tier2'] ?? 2.0),
+            'tier3' => (float)($body['shippingRules']['tier3'] ?? 3.0),
+            'tier4Plus' => (float)($body['shippingRules']['tier4Plus'] ?? 4.0),
+        ];
+    }
+    if (isset($body['adminAuthRequired'])) {
+        $changes['adminAuthRequired'] = (bool)$body['adminAuthRequired'];
+    }
+    if (isset($body['adminPassword'])) {
+        $changes['adminPassword'] = trim((string)$body['adminPassword']);
+    }
+
     try {
-        $state = saveStoreState(['shippingCost' => round($amount, 2)]);
-        sendJson(200, ['success' => true, 'shippingCost' => (float)$state['shippingCost']]);
+        $saved = saveStoreState($changes);
+        sendJson(200, [
+            'success' => true,
+            'shippingCost' => (float)$saved['shippingCost'],
+            'shippingRules' => $saved['shippingRules'],
+            'adminAuthRequired' => (bool)$saved['adminAuthRequired'],
+        ]);
     } catch (Throwable $error) {
         sendJson(500, ['success' => false, 'error' => $error->getMessage()]);
     }

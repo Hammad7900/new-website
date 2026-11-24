@@ -42,7 +42,7 @@ export const ProductCard = ({ product }) => {
         {/* Category & Rating */}
         <div className="flex items-center justify-between text-xs text-stone-500 mb-1.5">
           <span className="uppercase tracking-widest text-[10px] font-semibold text-stone-400">
-            {product.category || 'CJ Product'}
+            {product.category || 'Atelier Goods'}
           </span>
           <span className="text-[10px] text-stone-400">{product.stock ? `${product.stock} in stock` : 'Availability on request'}</span>
         </div>

@@ -10,13 +10,19 @@ import {
   ExternalLink,
   Shield,
   Zap,
+  Layers,
+  Truck,
+  KeyRound,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
   { label: 'Overview', path: '/admin', icon: LayoutDashboard },
   { label: 'Customer Orders', path: '/admin/orders', icon: PackageCheck },
   { label: 'Product Catalog', path: '/admin/products', icon: ShoppingBag },
+  { label: 'Collections', path: '/admin/collections', icon: Layers },
+  { label: 'Shipping Rules', path: '/admin/shipping', icon: Truck },
   { label: 'Discount Codes', path: '/admin/coupons', icon: Tag },
+  { label: 'Security & Password', path: '/admin/security', icon: KeyRound },
 ];
 
 export const AdminLayout = ({ children, title = 'Management Dashboard' }) => {

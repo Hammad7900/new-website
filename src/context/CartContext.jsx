@@ -19,12 +19,30 @@ export const CartProvider = ({ children }) => {
 
   const [coupon, setCoupon] = useState(null);
   const [shipping, setShipping] = useState(PRICING.shippingCost);
+  const [shippingRules, setShippingRules] = useState({
+    baseRate: 1.0,
+    additionalItemRate: 1.0,
+    tier2: 2.0,
+    tier3: 3.0,
+    tier4Plus: 4.0,
+  });
 
   useEffect(() => {
-    fetchStoreSettings().then((settings) => {
-      const amount = Number(settings.shippingCost);
-      if (Number.isFinite(amount) && amount >= 0) setShipping(amount);
-    }).catch((error) => console.error('[Store settings]', error));
+    fetchStoreSettings()
+      .then((settings) => {
+        const amount = Number(settings.shippingCost);
+        if (Number.isFinite(amount) && amount >= 0) setShipping(amount);
+        if (settings.shippingRules && typeof settings.shippingRules === 'object') {
+          setShippingRules({
+            baseRate: Number(settings.shippingRules.baseRate) || 1.0,
+            additionalItemRate: Number(settings.shippingRules.additionalItemRate) || 1.0,
+            tier2: Number(settings.shippingRules.tier2) || 2.0,
+            tier3: Number(settings.shippingRules.tier3) || 3.0,
+            tier4Plus: Number(settings.shippingRules.tier4Plus) || 4.0,
+          });
+        }
+      })
+      .catch((error) => console.error('[Store settings]', error));
   }, []);
 
   useEffect(() => {
@@ -86,12 +104,30 @@ export const CartProvider = ({ children }) => {
   };
 
   const removeCoupon = () => setCoupon(null);
+
   const updateShippingCost = async (value) => {
     const amount = Number(value);
     if (!Number.isFinite(amount) || amount < 0) throw new Error('Enter a valid shipping fee.');
     const password = sessionStorage.getItem('aura_admin_password') || '';
-    await saveStoreSettings({ shippingCost: amount }, password);
+    const newRules = { ...shippingRules, baseRate: amount };
+    await saveStoreSettings({ shippingCost: amount, shippingRules: newRules }, password);
     setShipping(amount);
+    setShippingRules(newRules);
+    return true;
+  };
+
+  const updateShippingRules = async (rules) => {
+    const password = sessionStorage.getItem('aura_admin_password') || '';
+    const cleanRules = {
+      baseRate: Number(rules.baseRate) || 1.0,
+      additionalItemRate: Number(rules.additionalItemRate) || 1.0,
+      tier2: Number(rules.tier2) || (Number(rules.baseRate) || 1.0) + (Number(rules.additionalItemRate) || 1.0),
+      tier3: Number(rules.tier3) || (Number(rules.baseRate) || 1.0) + (Number(rules.additionalItemRate) || 1.0) * 2,
+      tier4Plus: Number(rules.tier4Plus) || (Number(rules.baseRate) || 1.0) + (Number(rules.additionalItemRate) || 1.0) * 3,
+    };
+    await saveStoreSettings({ shippingRules: cleanRules, shippingCost: cleanRules.baseRate }, password);
+    setShippingRules(cleanRules);
+    setShipping(cleanRules.baseRate);
     return true;
   };
 
@@ -120,11 +156,32 @@ export const CartProvider = ({ children }) => {
     );
   };
 
+  const itemCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
+
+  // Dynamic Tiered Shipping Calculation
+  // 1 Item = baseRate ($1.00)
+  // 2 Items = tier2 ($2.00 or base + extra)
+  // 3 Items = tier3 ($3.00 or base + 2*extra)
+  // 4+ Items = tier4Plus ($4.00 or base + (count - 1)*extra)
+  const calculateShipping = () => {
+    if (itemCount === 0) return 0;
+    const base = Number(shippingRules.baseRate ?? shipping ?? 1.0);
+    const extra = Number(shippingRules.additionalItemRate ?? 1.0);
+
+    if (itemCount === 1) return base;
+    if (itemCount === 2) return Number(shippingRules.tier2 ?? (base + extra));
+    if (itemCount === 3) return Number(shippingRules.tier3 ?? (base + extra * 2));
+    if (itemCount === 4) return Number(shippingRules.tier4Plus ?? (base + extra * 3));
+    
+    // 5 or more items
+    const tier4 = Number(shippingRules.tier4Plus ?? (base + extra * 3));
+    return tier4 + (itemCount - 4) * extra;
+  };
+
+  const shippingTotal = calculateShipping();
   const subtotal = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  const shippingTotal = cartItems.length ? shipping : 0;
   const discountAmount = Math.min(subtotal, coupon?.discount || 0);
   const total = Math.max(0, subtotal - discountAmount + shippingTotal);
-  const itemCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
 
   return (
     <CartContext.Provider
@@ -139,6 +196,8 @@ export const CartProvider = ({ children }) => {
         applyCoupon,
         removeCoupon,
         updateShippingCost,
+        updateShippingRules,
+        shippingRules,
         saveOrder,
         refreshOrders,
         updateOrderStatus,

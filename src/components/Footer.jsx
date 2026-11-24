@@ -8,26 +8,26 @@ export const Footer = () => (
         <div>
           <div className="font-serif text-2xl tracking-[0.25em] text-white font-semibold">A U R A</div>
           <p className="text-stone-400 text-xs leading-relaxed mt-3 max-w-sm">
-            Products are free. The store shipping fee is shown in the cart and at checkout.
+            Curated luxury goods, fine jewelry, and timeless atelier essentials with worldwide insured delivery.
           </p>
         </div>
         <div>
           <h2 className="text-xs font-semibold uppercase tracking-widest text-white mb-3">Store</h2>
           <ul className="space-y-2 text-xs text-stone-400">
-            <li><Link to="/#catalog" className="hover:text-white">Browse CJ products</Link></li>
-            <li><Link to="/cart" className="hover:text-white">Shopping cart</Link></li>
-            <li><Link to="/privacy-policy" className="hover:text-white">Privacy policy</Link></li>
+            <li><Link to="/#catalog" className="hover:text-white">Curated Collection</Link></li>
+            <li><Link to="/cart" className="hover:text-white">Shopping Bag</Link></li>
+            <li><Link to="/privacy-policy" className="hover:text-white">Privacy & Client Terms</Link></li>
           </ul>
         </div>
         <div>
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-white mb-3">Help</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-white mb-3">Client Concierge</h2>
           <ul className="space-y-2 text-xs text-stone-400">
-            <li><Link to="/contact" className="hover:text-white">Contact</Link></li>
-            <li><Link to="/admin/login" className="hover:text-white">Admin login</Link></li>
+            <li><Link to="/contact" className="hover:text-white">Contact Us</Link></li>
+            <li><Link to="/admin/login" className="hover:text-white">Atelier Management</Link></li>
           </ul>
         </div>
       </div>
-      <div className="pt-6 text-xs text-stone-500">© {new Date().getFullYear()} AURA</div>
+      <div className="pt-6 text-xs text-stone-500">© {new Date().getFullYear()} AURA Atelier & Goods. All rights reserved.</div>
     </div>
   </footer>
 );

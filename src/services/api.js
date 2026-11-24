@@ -17,11 +17,38 @@ export const fetchProductById = async (id) => {
   return result.data?.[0] || null;
 };
 
+export const fetchProductDetail = fetchProductById;
+
 export const fetchStoreProducts = async (params = {}) => {
   const query = new URLSearchParams();
   if (params.category && params.category !== 'All') query.set('category', params.category);
+  if (params.collection && params.collection !== 'All') query.set('collection', params.collection);
   if (params.search) query.set('search', params.search);
   return request(`/api/store-products${query.size ? `?${query}` : ''}`);
+};
+
+export const updateStoreProduct = (data) => request('/api/store-products', {
+  method: 'PATCH',
+  headers: adminHeaders(),
+  body: JSON.stringify(data),
+});
+
+export const fetchCollections = async () => (await request('/api/collections')).collections;
+
+export const saveCollection = (collection) => request('/api/collections', {
+  method: 'POST',
+  headers: adminHeaders(),
+  body: JSON.stringify(collection),
+});
+
+export const deleteCollection = (id, slug) => {
+  const params = new URLSearchParams();
+  if (id) params.set('id', id);
+  if (slug) params.set('slug', slug);
+  return request(`/api/collections?${params}`, {
+    method: 'DELETE',
+    headers: adminHeaders(),
+  });
 };
 
 export const listCJProduct = (id, price) => request('/api/store-products', {
@@ -43,6 +70,14 @@ export const placeOrderOnCJ = (orderData) => request('/api/cj-order', {
 export const verifyAdminPassword = (password) => request('/api/admin-auth', {
   method: 'POST',
   body: JSON.stringify({ password }),
+});
+
+export const getAdminSecurityStatus = () => request('/api/admin-auth');
+
+export const updateAdminSecurity = (payload) => request('/api/admin-auth', {
+  method: 'POST',
+  headers: adminHeaders(),
+  body: JSON.stringify(payload),
 });
 
 export const fetchStoreSettings = () => request('/api/store-settings');

@@ -16,9 +16,9 @@ export const Navbar = () => {
       {/* Top Announcement Bar - Clean white-label */}
       <div className="bg-stone-900 text-stone-200 text-xs py-2 px-4 text-center font-medium tracking-wide flex items-center justify-center space-x-2">
         <span className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-pulse"></span>
-        <span>CURATED CJ PRODUCTS · ${Number(shippingRate || 0).toFixed(2)} SHIPPING PER ORDER</span>
+        <span>CURATED ATELIER GOODS · WORLDWIDE PRIORITY INSURED DISPATCH</span>
         <span className="hidden md:inline text-stone-500">•</span>
-              <span className="hidden md:inline text-stone-400">FINAL TOTAL AT CHECKOUT</span>
+        <span className="hidden md:inline text-stone-400">256-BIT ENCRYPTED CHECKOUT</span>
       </div>
 
       {/* Main Navigation Bar */}

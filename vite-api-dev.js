@@ -45,6 +45,21 @@ function loadStoreState() {
       const parsed = JSON.parse(content);
       return {
         shippingCost: typeof parsed.shippingCost === 'number' ? parsed.shippingCost : 1.0,
+        shippingRules: parsed.shippingRules || {
+          baseRate: 1.0,
+          additionalItemRate: 1.0,
+          tier2: 2.0,
+          tier3: 3.0,
+          tier4Plus: 4.0,
+        },
+        collections: Array.isArray(parsed.collections) ? parsed.collections : [
+          { id: 'col-jewelry', name: 'Fine Jewelry', slug: 'jewelry', description: 'Curated body chains, necklaces, and delicate luxury accents' },
+          { id: 'col-accessories', name: 'Designer Accessories', slug: 'accessories', description: 'Atelier tech cases, daily essentials, and modern accents' },
+          { id: 'col-watches', name: 'Horology & Watches', slug: 'watches', description: 'Precision luxury timepieces and bespoke straps' },
+          { id: 'col-wigs', name: 'Virgin Hair & Wigs', slug: 'wigs', description: 'Handcrafted virgin human hair and couture styling' },
+        ],
+        adminPassword: parsed.adminPassword || '',
+        adminAuthRequired: Boolean(parsed.adminAuthRequired),
         coupons: Array.isArray(parsed.coupons) ? parsed.coupons : [],
         orders: Array.isArray(parsed.orders) ? parsed.orders : [],
         products: Array.isArray(parsed.products) ? parsed.products : [],
@@ -56,6 +71,21 @@ function loadStoreState() {
 
   return {
     shippingCost: 1.0,
+    shippingRules: {
+      baseRate: 1.0,
+      additionalItemRate: 1.0,
+      tier2: 2.0,
+      tier3: 3.0,
+      tier4Plus: 4.0,
+    },
+    collections: [
+      { id: 'col-jewelry', name: 'Fine Jewelry', slug: 'jewelry', description: 'Curated body chains, necklaces, and delicate luxury accents' },
+      { id: 'col-accessories', name: 'Designer Accessories', slug: 'accessories', description: 'Atelier tech cases, daily essentials, and modern accents' },
+      { id: 'col-watches', name: 'Horology & Watches', slug: 'watches', description: 'Precision luxury timepieces and bespoke straps' },
+      { id: 'col-wigs', name: 'Virgin Hair & Wigs', slug: 'wigs', description: 'Handcrafted virgin human hair and couture styling' },
+    ],
+    adminPassword: '',
+    adminAuthRequired: false,
     coupons: [
       { code: 'SAVE10', type: 'percentage', value: 10, expiry: '2027-12-31', createdAt: new Date().toISOString() },
       { code: 'WELCOME20', type: 'fixed', value: 20, expiry: '2027-12-31', createdAt: new Date().toISOString() },
@@ -169,24 +199,140 @@ export function apiDevServerPlugin() {
 
         // 1. /api/admin-auth
         if (pathname === '/api/admin-auth') {
-          return sendJson(res, 200, { success: true, passwordRequired: false });
+          const state = loadStoreState();
+          if (req.method === 'GET') {
+            return sendJson(res, 200, {
+              success: true,
+              passwordRequired: Boolean(state.adminAuthRequired),
+              hasPassword: Boolean(state.adminPassword),
+            });
+          }
+
+          if (req.method === 'POST') {
+            const body = await readBody(req);
+            
+            // Set or Change Password
+            if (body.action === 'change' || body.action === 'set') {
+              const newPass = String(body.newPassword || '').trim();
+              const requireAuth = body.requireAuth !== undefined ? Boolean(body.requireAuth) : true;
+              
+              if (state.adminAuthRequired && state.adminPassword && body.action === 'change') {
+                if (String(body.currentPassword || '') !== state.adminPassword) {
+                  return sendJson(res, 401, { success: false, error: 'Current password does not match.' });
+                }
+              }
+
+              state.adminPassword = newPass;
+              state.adminAuthRequired = requireAuth && Boolean(newPass);
+              saveStoreState(state);
+              return sendJson(res, 200, {
+                success: true,
+                message: 'Admin security settings updated successfully.',
+                passwordRequired: state.adminAuthRequired,
+              });
+            }
+
+            // Normal login verification
+            if (!state.adminAuthRequired || !state.adminPassword) {
+              return sendJson(res, 200, { success: true, passwordRequired: false });
+            }
+
+            if (String(body.password || '') === state.adminPassword) {
+              return sendJson(res, 200, { success: true });
+            }
+
+            return sendJson(res, 401, { success: false, error: 'Incorrect administrator password.' });
+          }
         }
 
         // 2. /api/store-settings
         if (pathname === '/api/store-settings') {
           const state = loadStoreState();
           if (req.method === 'GET') {
-            return sendJson(res, 200, { success: true, shippingCost: state.shippingCost });
+            return sendJson(res, 200, {
+              success: true,
+              shippingCost: state.shippingCost,
+              shippingRules: state.shippingRules,
+              adminAuthRequired: state.adminAuthRequired,
+              hasPassword: Boolean(state.adminPassword),
+            });
           }
           if (req.method === 'POST') {
             const body = await readBody(req);
-            const fee = Number(body.shippingCost);
-            if (!Number.isFinite(fee) || fee < 0) {
-              return sendJson(res, 400, { success: false, error: 'Enter a valid shipping cost.' });
+            if (body.shippingCost !== undefined) {
+              const fee = Number(body.shippingCost);
+              if (Number.isFinite(fee) && fee >= 0) {
+                state.shippingCost = Math.round(fee * 100) / 100;
+              }
             }
-            state.shippingCost = Math.round(fee * 100) / 100;
+            if (body.shippingRules && typeof body.shippingRules === 'object') {
+              state.shippingRules = {
+                baseRate: Number(body.shippingRules.baseRate) || 1.0,
+                additionalItemRate: Number(body.shippingRules.additionalItemRate) || 1.0,
+                tier2: Number(body.shippingRules.tier2) || 2.0,
+                tier3: Number(body.shippingRules.tier3) || 3.0,
+                tier4Plus: Number(body.shippingRules.tier4Plus) || 4.0,
+              };
+            }
+            if (body.adminAuthRequired !== undefined) {
+              state.adminAuthRequired = Boolean(body.adminAuthRequired);
+            }
+            if (body.adminPassword !== undefined) {
+              state.adminPassword = String(body.adminPassword || '').trim();
+            }
             saveStoreState(state);
-            return sendJson(res, 200, { success: true, shippingCost: state.shippingCost });
+            return sendJson(res, 200, {
+              success: true,
+              shippingCost: state.shippingCost,
+              shippingRules: state.shippingRules,
+              adminAuthRequired: state.adminAuthRequired,
+            });
+          }
+        }
+
+        // 2b. /api/collections
+        if (pathname === '/api/collections') {
+          const state = loadStoreState();
+          if (req.method === 'GET') {
+            return sendJson(res, 200, { success: true, collections: state.collections || [] });
+          }
+
+          if (req.method === 'POST') {
+            const body = await readBody(req);
+            const name = String(body.name || '').trim();
+            const slug = String(body.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-')).trim();
+            const desc = String(body.description || '').trim();
+
+            if (!name || !slug) {
+              return sendJson(res, 400, { success: false, error: 'Collection name and slug are required.' });
+            }
+
+            const existingIdx = (state.collections || []).findIndex((c) => c.id === body.id || c.slug === slug);
+            const colItem = {
+              id: body.id || `col-${Date.now().toString(36)}`,
+              name,
+              slug,
+              description: desc,
+            };
+
+            if (existingIdx !== -1) {
+              state.collections[existingIdx] = { ...state.collections[existingIdx], ...colItem };
+            } else {
+              state.collections = [...(state.collections || []), colItem];
+            }
+
+            saveStoreState(state);
+            return sendJson(res, 200, { success: true, collections: state.collections });
+          }
+
+          if (req.method === 'DELETE') {
+            const id = url.searchParams.get('id');
+            const slug = url.searchParams.get('slug');
+            state.collections = (state.collections || []).filter(
+              (c) => c.id !== id && c.slug !== slug
+            );
+            saveStoreState(state);
+            return sendJson(res, 200, { success: true, collections: state.collections });
           }
         }
 
@@ -198,6 +344,7 @@ export function apiDevServerPlugin() {
             const id = url.searchParams.get('id');
             const search = (url.searchParams.get('search') || '').toLowerCase().trim();
             const category = (url.searchParams.get('category') || '').toLowerCase().trim();
+            const collection = (url.searchParams.get('collection') || '').toLowerCase().trim();
 
             if (id) {
               products = products.filter((p) => String(p.id) === String(id));
@@ -214,6 +361,12 @@ export function apiDevServerPlugin() {
                 (p.category || '').toLowerCase().includes(category)
               );
             }
+            if (collection && collection !== 'all') {
+              products = products.filter((p) =>
+                (p.collectionSlug || '').toLowerCase() === collection ||
+                (p.category || '').toLowerCase().includes(collection)
+              );
+            }
 
             return sendJson(res, 200, {
               success: true,
@@ -221,6 +374,35 @@ export function apiDevServerPlugin() {
               total: products.length,
               source: 'admin_listed_products',
             });
+          }
+
+          if (req.method === 'PATCH') {
+            const body = await readBody(req);
+            const productId = String(body.id || '').trim();
+            if (!productId) {
+              return sendJson(res, 400, { success: false, error: 'Product ID is required.' });
+            }
+
+            const idx = state.products.findIndex((p) => String(p.id) === productId);
+            if (idx === -1) {
+              return sendJson(res, 404, { success: false, error: 'Product not found.' });
+            }
+
+            if (body.collectionSlug !== undefined) {
+              state.products[idx].collectionSlug = String(body.collectionSlug || '').trim();
+            }
+            if (body.price !== undefined) {
+              const pr = Number(body.price);
+              if (Number.isFinite(pr) && pr >= 0) {
+                state.products[idx].price = Math.round(pr * 100) / 100;
+              }
+            }
+            if (body.name !== undefined && String(body.name).trim()) {
+              state.products[idx].name = String(body.name).trim();
+            }
+
+            saveStoreState(state);
+            return sendJson(res, 200, { success: true, product: state.products[idx] });
           }
 
           if (req.method === 'POST') {

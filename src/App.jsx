@@ -17,7 +17,10 @@ import { AdminLogin } from './pages/admin/AdminLogin';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminOrders } from './pages/admin/AdminOrders';
 import { AdminProducts } from './pages/admin/AdminProducts';
+import { AdminCollections } from './pages/admin/AdminCollections';
+import { AdminShipping } from './pages/admin/AdminShipping';
 import { AdminCoupons } from './pages/admin/AdminCoupons';
+import { AdminSecurity } from './pages/admin/AdminSecurity';
 import { AdminRoute } from './context/AdminAuthContext';
 
 export const App = () => {
@@ -66,10 +69,34 @@ export const App = () => {
             }
           />
           <Route
+            path="/admin/collections"
+            element={
+              <AdminRoute>
+                <AdminCollections />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/shipping"
+            element={
+              <AdminRoute>
+                <AdminShipping />
+              </AdminRoute>
+            }
+          />
+          <Route
             path="/admin/coupons"
             element={
               <AdminRoute>
                 <AdminCoupons />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/security"
+            element={
+              <AdminRoute>
+                <AdminSecurity />
               </AdminRoute>
             }
           />

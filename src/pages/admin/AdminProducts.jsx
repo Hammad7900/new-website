@@ -1,7 +1,14 @@
 // src/pages/admin/AdminProducts.jsx
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '../../components/admin/AdminLayout';
-import { fetchProducts, fetchAdminStoreProducts, listCJProduct, unlistStoreProduct } from '../../services/api';
+import {
+  fetchProducts,
+  fetchAdminStoreProducts,
+  listCJProduct,
+  unlistStoreProduct,
+  fetchCollections,
+  updateStoreProduct,
+} from '../../services/api';
 import {
   RefreshCw,
   Search,
@@ -23,6 +30,7 @@ export const AdminProducts = () => {
   const [catalogStatus, setCatalogStatus] = useState('loading');
   const [catalogError, setCatalogError] = useState('');
   const [listedProducts, setListedProducts] = useState([]);
+  const [collections, setCollections] = useState([]);
   const [prices, setPrices] = useState({});
   const [savingIds, setSavingIds] = useState([]);
   const [catalogPage, setCatalogPage] = useState(1);
@@ -35,14 +43,18 @@ export const AdminProducts = () => {
 
     try {
       const q = keywordToSearch === null ? cjKeyword : keywordToSearch;
-      const res = await fetchProducts({
-        pageNum: pageToLoad,
-        category: selectedCategory === 'All' ? '' : selectedCategory,
-        search: q,
-        pageSize: 30,
-      });
-      const listed = await fetchAdminStoreProducts();
-      setListedProducts(listed);
+      const [res, listed, cols] = await Promise.all([
+        fetchProducts({
+          pageNum: pageToLoad,
+          category: selectedCategory === 'All' ? '' : selectedCategory,
+          search: q,
+          pageSize: 30,
+        }),
+        fetchAdminStoreProducts(),
+        fetchCollections().catch(() => []),
+      ]);
+      setListedProducts(listed || []);
+      setCollections(cols || []);
 
       if (res && res.data) {
         setProducts(res.data);
@@ -110,6 +122,20 @@ export const AdminProducts = () => {
       setSyncMessage({ type: 'error', text: error.message || 'Could not unlist this product.' });
     } finally {
       setSavingIds((ids) => ids.filter((id) => id !== product.id));
+    }
+  };
+
+  const handleAssignCollection = async (productId, collectionSlug) => {
+    try {
+      await updateStoreProduct({ id: productId, collectionSlug });
+      setListedProducts((current) =>
+        current.map((item) => (item.id === productId ? { ...item, collectionSlug } : item))
+      );
+      const colName = collections.find((c) => c.slug === collectionSlug)?.name || 'Uncategorized';
+      setSyncMessage({ type: 'success', text: `Assigned to collection: ${colName}` });
+      setTimeout(() => setSyncMessage(null), 3500);
+    } catch (error) {
+      setSyncMessage({ type: 'error', text: error.message || 'Could not assign collection.' });
     }
   };
 
@@ -273,6 +299,7 @@ export const AdminProducts = () => {
                   <th className="py-3.5 px-5">Product</th>
                   <th className="py-3.5 px-4">SKU / Ref</th>
                   <th className="py-3.5 px-4">Category</th>
+                  <th className="py-3.5 px-4">Collection</th>
                   <th className="py-3.5 px-4">Your Price (USD)</th>
                   <th className="py-3.5 px-4">Warehouse Stock</th>
                   <th className="py-3.5 px-4">Variants</th>
@@ -316,6 +343,26 @@ export const AdminProducts = () => {
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-stone-100 text-stone-700">
                             {prod.category}
                           </span>
+                        </td>
+
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          {listedProducts.some((item) => item.id === prod.id) ? (
+                            <select
+                              value={listedProducts.find((item) => item.id === prod.id)?.collectionSlug || ''}
+                              onChange={(e) => handleAssignCollection(prod.id, e.target.value)}
+                              className="px-2.5 py-1.5 rounded-lg border border-stone-200 text-xs bg-white text-stone-800 focus:outline-none focus:border-stone-900 cursor-pointer shadow-2xs font-medium"
+                              aria-label={`Assign collection for ${prod.name}`}
+                            >
+                              <option value="">Unassigned</option>
+                              {collections.map((col) => (
+                                <option key={col.slug} value={col.slug}>
+                                  {col.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-[10px] text-stone-400 italic">List to assign</span>
+                          )}
                         </td>
 
                         <td className="py-4 px-4 whitespace-nowrap">
