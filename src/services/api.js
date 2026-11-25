@@ -101,3 +101,15 @@ export const updateAdminOrder = (id, status, cjOrderId) => request('/api/orders'
   headers: adminHeaders(),
   body: JSON.stringify({ id, status, cjOrderId }),
 });
+
+export const submitInquiry = (inquiry) => request('/api/inquiries', {
+  method: 'POST',
+  body: JSON.stringify(inquiry),
+});
+
+export const fetchInquiries = async () => (await request('/api/inquiries', { headers: adminHeaders() })).inquiries;
+
+export const deleteInquiry = async (id) => (await request(`/api/inquiries?id=${encodeURIComponent(id)}`, {
+  method: 'DELETE',
+  headers: adminHeaders(),
+})).inquiries;

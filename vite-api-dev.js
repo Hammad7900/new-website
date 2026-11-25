@@ -73,6 +73,10 @@ function loadStoreState() {
         coupons: Array.isArray(parsed.coupons) ? parsed.coupons : [],
         orders: Array.isArray(parsed.orders) ? parsed.orders : [],
         products: Array.isArray(parsed.products) ? parsed.products : [],
+        contactEmail: parsed.contactEmail || 'concierge@auraatelier.com',
+        contactPhone: parsed.contactPhone || '+1 (800) AURA-LUX',
+        contactHours: parsed.contactHours || 'Mon–Fri, 9am–6pm EST',
+        inquiries: Array.isArray(parsed.inquiries) ? parsed.inquiries : [],
       };
     }
   } catch (err) {
@@ -97,10 +101,10 @@ function loadStoreState() {
       tierBeyond10: 1.0,
     },
     collections: [
+      { id: 'col-wigs', name: 'Virgin Hair & Wigs', slug: 'wigs', description: 'Handcrafted virgin human hair, HD lace, and couture styling' },
       { id: 'col-jewelry', name: 'Fine Jewelry', slug: 'jewelry', description: 'Curated body chains, necklaces, and delicate luxury accents' },
       { id: 'col-accessories', name: 'Designer Accessories', slug: 'accessories', description: 'Atelier tech cases, daily essentials, and modern accents' },
       { id: 'col-watches', name: 'Horology & Watches', slug: 'watches', description: 'Precision luxury timepieces and bespoke straps' },
-      { id: 'col-wigs', name: 'Virgin Hair & Wigs', slug: 'wigs', description: 'Handcrafted virgin human hair and couture styling' },
     ],
     adminPassword: '',
     adminMasterKey: '',
@@ -112,6 +116,10 @@ function loadStoreState() {
     ],
     orders: [],
     products: [],
+    contactEmail: 'concierge@auraatelier.com',
+    contactPhone: '+1 (800) AURA-LUX',
+    contactHours: 'Mon–Fri, 9am–6pm EST',
+    inquiries: [],
   };
 }
 
@@ -300,6 +308,9 @@ export function apiDevServerPlugin() {
               shippingRules: state.shippingRules,
               adminAuthRequired: state.adminAuthRequired,
               hasPassword: Boolean(state.adminPassword),
+              contactEmail: state.contactEmail || 'concierge@auraatelier.com',
+              contactPhone: state.contactPhone || '+1 (800) AURA-LUX',
+              contactHours: state.contactHours || 'Mon–Fri, 9am–6pm EST',
             });
           }
           if (req.method === 'POST') {
@@ -334,12 +345,24 @@ export function apiDevServerPlugin() {
             if (body.adminPassword !== undefined) {
               state.adminPassword = String(body.adminPassword || '').trim();
             }
+            if (body.contactEmail !== undefined) {
+              state.contactEmail = String(body.contactEmail || '').trim();
+            }
+            if (body.contactPhone !== undefined) {
+              state.contactPhone = String(body.contactPhone || '').trim();
+            }
+            if (body.contactHours !== undefined) {
+              state.contactHours = String(body.contactHours || '').trim();
+            }
             saveStoreState(state);
             return sendJson(res, 200, {
               success: true,
               shippingCost: state.shippingCost,
               shippingRules: state.shippingRules,
               adminAuthRequired: state.adminAuthRequired,
+              contactEmail: state.contactEmail || 'concierge@auraatelier.com',
+              contactPhone: state.contactPhone || '+1 (800) AURA-LUX',
+              contactHours: state.contactHours || 'Mon–Fri, 9am–6pm EST',
             });
           }
         }
@@ -664,6 +687,39 @@ export function apiDevServerPlugin() {
               : Math.min(subtotal, coupon.value);
 
           return sendJson(res, 200, { success: true, coupon, discount });
+        }
+
+        // 6b. /api/inquiries
+        if (pathname === '/api/inquiries') {
+          const state = loadStoreState();
+          if (req.method === 'GET') {
+            return sendJson(res, 200, { success: true, inquiries: state.inquiries || [] });
+          }
+          if (req.method === 'POST') {
+            const body = await readBody(req);
+            const { name, email, subject, message } = body;
+            if (!name || !email || !message) {
+              return sendJson(res, 400, { success: false, error: 'Name, email, and message are required.' });
+            }
+            const inq = {
+              id: `inq_${Date.now()}`,
+              name: String(name).trim(),
+              email: String(email).trim(),
+              subject: String(subject || 'General Inquiry').trim(),
+              message: String(message).trim(),
+              date: new Date().toISOString(),
+              status: 'new',
+            };
+            state.inquiries = [inq, ...(state.inquiries || [])];
+            saveStoreState(state);
+            return sendJson(res, 201, { success: true, inquiry: inq });
+          }
+          if (req.method === 'DELETE') {
+            const id = searchParams.get('id');
+            state.inquiries = (state.inquiries || []).filter((item) => item.id !== id);
+            saveStoreState(state);
+            return sendJson(res, 200, { success: true, inquiries: state.inquiries });
+          }
         }
 
         // 7. /api/orders

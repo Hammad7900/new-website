@@ -15,6 +15,7 @@ import {
   Truck,
   KeyRound,
   LogOut,
+  Mail,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { label: 'Collections', path: '/admin/collections', icon: Layers },
   { label: 'Shipping Rules', path: '/admin/shipping', icon: Truck },
   { label: 'Discount Codes', path: '/admin/coupons', icon: Tag },
+  { label: 'Inquiries & Email', path: '/admin/inquiries', icon: Mail },
   { label: 'Security & Password', path: '/admin/security', icon: KeyRound },
 ];
 

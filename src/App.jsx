@@ -21,6 +21,7 @@ import { AdminCollections } from './pages/admin/AdminCollections';
 import { AdminShipping } from './pages/admin/AdminShipping';
 import { AdminCoupons } from './pages/admin/AdminCoupons';
 import { AdminSecurity } from './pages/admin/AdminSecurity';
+import { AdminInquiries } from './pages/admin/AdminInquiries';
 import { AdminRoute } from './context/AdminAuthContext';
 
 export const App = () => {
@@ -97,6 +98,14 @@ export const App = () => {
             element={
               <AdminRoute>
                 <AdminSecurity />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/inquiries"
+            element={
+              <AdminRoute>
+                <AdminInquiries />
               </AdminRoute>
             }
           />

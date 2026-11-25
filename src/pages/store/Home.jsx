@@ -15,64 +15,64 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
-// Curated collection visuals for Shopify-style collection cards
+// Curated collection visuals for Shopify-style collection cards (Flagship: Virgin Hair & Wigs)
 const COLLECTION_PRESETS = [
+  {
+    slug: 'wigs',
+    name: 'Virgin Hair & Wigs Atelier',
+    desc: '100% Raw unprocessed human hair, undetectable Swiss HD lace, and 30-second glueless wear & go caps.',
+    image: 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    slug: 'jewelry',
+    name: 'Haute Jewelry & Chains',
+    desc: 'Pure gold accents, hand-polished body chains & radiant luxury pendants.',
+    image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80',
+  },
   {
     slug: 'watches',
     name: 'Timepieces & Horology',
-    desc: 'Precision movements, timeless stainless bezels & sapphire glass.',
+    desc: 'Precision movements, timeless stainless bezels & scratch-resistant sapphire glass.',
     image: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=800&q=80',
   },
   {
     slug: 'leather',
     name: 'Artisan Leather Goods',
-    desc: 'Full-grain wallets, bespoke messenger bags & handcrafted folios.',
+    desc: 'Full-grain wallets, bespoke messenger bags & handcrafted atelier folios.',
     image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    slug: 'jewelry',
-    name: 'Haute Jewelry & Chains',
-    desc: 'Pure gold accents, hand-polished chains & radiant pendants.',
-    image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    slug: 'home-audio',
-    name: 'Atelier Living & Audio',
-    desc: 'Sculptural ambient lamps, acoustics & refined tabletop objects.',
-    image: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=800&q=80',
   },
 ];
 
 const REVIEWS = [
   {
-    name: 'Julian Vance',
+    name: 'Serena Sterling',
+    location: 'Atlanta, USA',
+    stars: 5,
+    item: '13x6 HD Lace Raw Virgin Body Wave Wig',
+    quote:
+      'The HD lace is completely invisible on my skin! Bleached knots were micro-fine and hair was silky with zero shedding. Arrived in a luxury satin bag with tracked dispatch.',
+  },
+  {
+    name: 'Nathalie Mensah',
     location: 'London, UK',
+    stars: 5,
+    item: 'Glueless 3D Wear & Go Pre-Plucked Wig',
+    quote:
+      'Literally took 30 seconds to put on with zero glue. The elastic band keeps it snug and the hairline is pre-plucked to absolute perfection. 10/10 quality.',
+  },
+  {
+    name: 'Julian Vance',
+    location: 'Zurich, Switzerland',
     stars: 5,
     item: 'Chronograph Timepiece',
     quote:
-      'The finish and weight of the watch exceeded all expectations. Fast insured delivery to London and the checkout was completely frictionless.',
-  },
-  {
-    name: 'Claire Dupont',
-    location: 'Zurich, Switzerland',
-    stars: 5,
-    item: 'Artisan Leather Cardholder',
-    quote:
-      'Impeccable stitchwork and rich patina right out of the box. Truly atelier quality at an honest price.',
-  },
-  {
-    name: 'Marcus Sterling',
-    location: 'New York, USA',
-    stars: 5,
-    item: 'Bespoke Body Jewelry',
-    quote:
-      'Ordered two pieces together — the automated multi-item shipping calculation was completely transparent. Highly recommended store.',
+      'The finish and weight of the watch exceeded all expectations. Fast insured delivery and the encrypted checkout was completely frictionless.',
   },
   {
     name: 'Elena Rostova',
     location: 'Dubai, UAE',
     stars: 5,
-    item: 'Ambient Sculpture Lamp',
+    item: 'Pure Gold Accent Body Chain',
     quote:
       'Flawless packaging and tracked courier update at every step. A true luxury shopping experience on mobile.',
   },

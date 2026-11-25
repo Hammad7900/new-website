@@ -60,6 +60,10 @@ function loadStoreState() {
         'coupons' => [],
         'orders' => [],
         'products' => [],
+        'contactEmail' => 'concierge@auraatelier.com',
+        'contactPhone' => '+1 (800) AURA-LUX',
+        'contactHours' => 'Mon–Fri, 9am–6pm EST',
+        'inquiries' => [],
     ];
     if (!is_file($path)) return $defaults;
     $state = json_decode(@file_get_contents($path), true);
@@ -438,6 +442,9 @@ if (str_ends_with($uri, '/store-settings') || $endpoint === 'store-settings') {
             ],
             'adminAuthRequired' => !empty($state['adminAuthRequired']),
             'hasPassword' => !empty($state['adminPassword']),
+            'contactEmail' => $state['contactEmail'] ?? 'concierge@auraatelier.com',
+            'contactPhone' => $state['contactPhone'] ?? '+1 (800) AURA-LUX',
+            'contactHours' => $state['contactHours'] ?? 'Mon–Fri, 9am–6pm EST',
         ]);
     }
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') sendJson(405, ['success' => false, 'error' => 'GET or POST required.']);
@@ -475,6 +482,15 @@ if (str_ends_with($uri, '/store-settings') || $endpoint === 'store-settings') {
     if (isset($body['adminPassword'])) {
         $changes['adminPassword'] = trim((string)$body['adminPassword']);
     }
+    if (isset($body['contactEmail'])) {
+        $changes['contactEmail'] = trim((string)$body['contactEmail']);
+    }
+    if (isset($body['contactPhone'])) {
+        $changes['contactPhone'] = trim((string)$body['contactPhone']);
+    }
+    if (isset($body['contactHours'])) {
+        $changes['contactHours'] = trim((string)$body['contactHours']);
+    }
 
     try {
         $saved = saveStoreState($changes);
@@ -483,10 +499,80 @@ if (str_ends_with($uri, '/store-settings') || $endpoint === 'store-settings') {
             'shippingCost' => (float)$saved['shippingCost'],
             'shippingRules' => $saved['shippingRules'],
             'adminAuthRequired' => (bool)$saved['adminAuthRequired'],
+            'contactEmail' => $saved['contactEmail'] ?? 'concierge@auraatelier.com',
+            'contactPhone' => $saved['contactPhone'] ?? '+1 (800) AURA-LUX',
+            'contactHours' => $saved['contactHours'] ?? 'Mon–Fri, 9am–6pm EST',
         ]);
     } catch (Throwable $error) {
         sendJson(500, ['success' => false, 'error' => $error->getMessage()]);
     }
+}
+
+// Route: /api/inquiries
+if (str_ends_with($uri, '/inquiries') || $endpoint === 'inquiries') {
+    $state = loadStoreState();
+
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        if (!adminPasswordIsValid($ADMIN_PASSWORD)) {
+            sendJson(401, ['success' => false, 'error' => 'Administrator authentication required.']);
+        }
+        sendJson(200, ['success' => true, 'inquiries' => $state['inquiries'] ?? []]);
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        $name = trim($body['name'] ?? '');
+        $email = trim($body['email'] ?? '');
+        $subject = trim($body['subject'] ?? 'General Inquiry');
+        $message = trim($body['message'] ?? '');
+
+        if (!$name || !$email || !$message) {
+            sendJson(400, ['success' => false, 'error' => 'Name, email, and message are required.']);
+        }
+
+        $inquiry = [
+            'id' => 'inq_' . uniqid(),
+            'name' => $name,
+            'email' => $email,
+            'subject' => $subject,
+            'message' => $message,
+            'date' => date('c'),
+            'status' => 'new',
+        ];
+
+        $currentInquiries = $state['inquiries'] ?? [];
+        $updatedInquiries = array_merge([$inquiry], $currentInquiries);
+        saveStoreState(['inquiries' => $updatedInquiries]);
+
+        // Email notification to the configured store email
+        $recipient = $state['contactEmail'] ?? '';
+        if ($recipient && filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+            $headers = "From: noreply@" . ($_SERVER['HTTP_HOST'] ?? 'store.com') . "\r\n";
+            $headers .= "Reply-To: {$email}\r\n";
+            $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+            $mailSubject = "New Client Inquiry from {$name}: {$subject}";
+            $mailBody = "You received a new inquiry on your store:\n\nName: {$name}\nEmail: {$email}\nSubject: {$subject}\n\nMessage:\n{$message}\n\nDate: " . date('Y-m-d H:i:s');
+            @mail($recipient, $mailSubject, $mailBody, $headers);
+        }
+
+        sendJson(201, ['success' => true, 'message' => 'Inquiry submitted successfully.', 'inquiry' => $inquiry]);
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+        if (!adminPasswordIsValid($ADMIN_PASSWORD)) {
+            sendJson(401, ['success' => false, 'error' => 'Administrator authentication required.']);
+        }
+        $id = $_GET['id'] ?? '';
+        if (!$id) sendJson(400, ['success' => false, 'error' => 'Inquiry ID required.']);
+        $currentInquiries = $state['inquiries'] ?? [];
+        $filtered = array_values(array_filter($currentInquiries, function($inq) use ($id) {
+            return ($inq['id'] ?? '') !== $id;
+        }));
+        saveStoreState(['inquiries' => $filtered]);
+        sendJson(200, ['success' => true, 'inquiries' => $filtered]);
+    }
+
+    sendJson(405, ['success' => false, 'error' => 'GET, POST, or DELETE required.']);
 }
 
 if (str_ends_with($uri, '/coupons')) {

@@ -89,6 +89,8 @@ export const ProductPage = () => {
         setProduct(data);
         if (data?.variants && data.variants.length > 0) {
           setSelectedVariant(data.variants[0]);
+        } else if (data) {
+          setSelectedVariant({ vid: data.id || 'default', name: 'Standard Edition', price: data.price || 0 });
         }
       })
       .catch((e) => {
@@ -105,8 +107,10 @@ export const ProductPage = () => {
   }, [id]);
 
   const handleAddToCart = () => {
-    if (!product || !selectedVariant) return;
-    addToCart(product, quantity, selectedVariant);
+    if (!product) return;
+    const variantToUse =
+      selectedVariant || { vid: product.id || 'default', name: 'Standard Edition', price: product.price || 0 };
+    addToCart(product, quantity, variantToUse);
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2200);
   };
@@ -354,11 +358,11 @@ export const ProductPage = () => {
               <button
                 type="button"
                 onClick={handleAddToCart}
-                disabled={!selectedVariant?.vid}
+                disabled={!product}
                 className={`flex-1 py-4 px-6 rounded-2xl font-semibold text-xs sm:text-sm uppercase tracking-wider transition-all shadow-md flex items-center justify-center space-x-2 cursor-pointer ${
                   addedToCart
                     ? 'bg-emerald-600 text-white'
-                    : selectedVariant?.vid
+                    : product
                     ? 'bg-stone-900 hover:bg-black text-white'
                     : 'bg-stone-300 text-stone-600 cursor-not-allowed'
                 }`}
@@ -371,7 +375,7 @@ export const ProductPage = () => {
                 ) : (
                   <>
                     <ShoppingBag className="w-5 h-5" />
-                    <span>{selectedVariant?.vid ? 'Add to Bag' : 'Selection Unavailable'}</span>
+                    <span>Add to Bag</span>
                   </>
                 )}
               </button>

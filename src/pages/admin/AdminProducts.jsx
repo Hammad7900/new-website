@@ -26,7 +26,7 @@ import {
   DollarSign,
 } from 'lucide-react';
 
-const POPULAR_QUERIES = ['watch', 'leather', 'headphone', 'lamp', 'ring', 'coffee', 'sunglasses', 'jewelry'];
+const POPULAR_QUERIES = ['wig', 'human hair', 'hd lace', 'hair bundles', 'lace frontal', 'watch', 'jewelry', 'leather'];
 
 export const AdminProducts = () => {
   const [activeTab, setActiveTab] = useState('listed'); // 'listed' | 'catalog'
