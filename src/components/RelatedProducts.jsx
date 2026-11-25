@@ -1,9 +1,9 @@
 // src/components/RelatedProducts.jsx
 import React, { useState, useEffect } from 'react';
 import { ProductCard } from './ProductCard';
-import { fetchProducts } from '../services/api';
+import { fetchStoreProducts } from '../services/api';
 
-export const RelatedProducts = ({ currentProductId, category, allProducts = [] }) => {
+export const RelatedProducts = ({ currentProductId, category, collectionSlug, allProducts = [] }) => {
   const [items, setItems] = useState(allProducts);
 
   useEffect(() => {
@@ -15,12 +15,12 @@ export const RelatedProducts = ({ currentProductId, category, allProducts = [] }
     let isMounted = true;
     async function loadRelated() {
       try {
-        const res = await fetchProducts({ category: category || '', pageSize: 8 });
-        if (isMounted && res && res.data) {
+        const res = await fetchStoreProducts();
+        if (isMounted && res && Array.isArray(res.data)) {
           setItems(res.data);
         }
       } catch (err) {
-        console.warn('Failed to load related products:', err);
+        console.warn('Failed to load related store products:', err);
       }
     }
 
@@ -28,12 +28,32 @@ export const RelatedProducts = ({ currentProductId, category, allProducts = [] }
     return () => {
       isMounted = false;
     };
-  }, [currentProductId, category, allProducts]);
+  }, [currentProductId, category, collectionSlug, allProducts]);
 
-  // Filter products by same category, excluding current product
-  const related = items
-    .filter((p) => p.id !== currentProductId)
-    .slice(0, 4);
+  // Priority 1: same collection
+  // Priority 2: same category
+  // Priority 3: other listed products
+  const otherProducts = items.filter((p) => String(p.id) !== String(currentProductId));
+
+  const sameCollection = collectionSlug
+    ? otherProducts.filter((p) => p.collectionSlug === collectionSlug)
+    : [];
+
+  const sameCategory = category
+    ? otherProducts.filter(
+        (p) =>
+          (p.category || '').toLowerCase() === category.toLowerCase() &&
+          !sameCollection.some((sc) => sc.id === p.id)
+      )
+    : [];
+
+  const remaining = otherProducts.filter(
+    (p) =>
+      !sameCollection.some((sc) => sc.id === p.id) &&
+      !sameCategory.some((cat) => cat.id === p.id)
+  );
+
+  const related = [...sameCollection, ...sameCategory, ...remaining].slice(0, 4);
 
   if (related.length === 0) return null;
 
@@ -41,10 +61,10 @@ export const RelatedProducts = ({ currentProductId, category, allProducts = [] }
     <section className="mt-20 pt-16 border-t border-stone-200">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8">
         <div>
-          <span className="text-[10px] uppercase font-bold tracking-widest text-stone-400">
+          <span className="text-[10px] uppercase font-bold tracking-widest text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">
             Curated Complements
           </span>
-          <h2 className="font-serif text-2xl sm:text-3xl text-stone-900 mt-1">
+          <h2 className="font-serif text-2xl sm:text-3xl text-stone-900 mt-2">
             You May Also Admire
           </h2>
         </div>

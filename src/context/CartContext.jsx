@@ -118,13 +118,26 @@ export const CartProvider = ({ children }) => {
 
   const updateShippingRules = async (rules) => {
     const password = sessionStorage.getItem('aura_admin_password') || '';
+    const base = Number(rules.tier1 ?? rules.baseRate ?? 1.0);
+    const add = Number(rules.tierBeyond10 ?? rules.additionalItemRate ?? 1.0);
+
     const cleanRules = {
-      baseRate: Number(rules.baseRate) || 1.0,
-      additionalItemRate: Number(rules.additionalItemRate) || 1.0,
-      tier2: Number(rules.tier2) || (Number(rules.baseRate) || 1.0) + (Number(rules.additionalItemRate) || 1.0),
-      tier3: Number(rules.tier3) || (Number(rules.baseRate) || 1.0) + (Number(rules.additionalItemRate) || 1.0) * 2,
-      tier4Plus: Number(rules.tier4Plus) || (Number(rules.baseRate) || 1.0) + (Number(rules.additionalItemRate) || 1.0) * 3,
+      baseRate: base,
+      additionalItemRate: add,
+      tier1: base,
+      tier2: Number(rules.tier2) ?? (base + add),
+      tier3: Number(rules.tier3) ?? (base + add * 2),
+      tier4: Number(rules.tier4 ?? rules.tier4Plus) ?? (base + add * 3),
+      tier5: Number(rules.tier5) ?? (base + add * 4),
+      tier6: Number(rules.tier6) ?? (base + add * 5),
+      tier7: Number(rules.tier7) ?? (base + add * 6),
+      tier8: Number(rules.tier8) ?? (base + add * 7),
+      tier9: Number(rules.tier9) ?? (base + add * 8),
+      tier10: Number(rules.tier10) ?? (base + add * 9),
+      tierBeyond10: Number(rules.tierBeyond10) ?? add,
+      tier4Plus: Number(rules.tier4 ?? rules.tier4Plus) ?? (base + add * 3),
     };
+
     await saveStoreSettings({ shippingRules: cleanRules, shippingCost: cleanRules.baseRate }, password);
     setShippingRules(cleanRules);
     setShipping(cleanRules.baseRate);
@@ -158,24 +171,31 @@ export const CartProvider = ({ children }) => {
 
   const itemCount = cartItems.reduce((sum, i) => sum + i.quantity, 0);
 
-  // Dynamic Tiered Shipping Calculation
-  // 1 Item = baseRate ($1.00)
-  // 2 Items = tier2 ($2.00 or base + extra)
-  // 3 Items = tier3 ($3.00 or base + 2*extra)
-  // 4+ Items = tier4Plus ($4.00 or base + (count - 1)*extra)
+  // Dynamic 10-Tier Multi-Item Shipping Calculation
+  // 1 Item = tier1 ($1.00)
+  // 2 Items = tier2 ($2.00)
+  // ...
+  // 10 Items = tier10 ($10.00)
+  // 11+ Items = tier10 + (count - 10) * tierBeyond10
   const calculateShipping = () => {
     if (itemCount === 0) return 0;
-    const base = Number(shippingRules.baseRate ?? shipping ?? 1.0);
-    const extra = Number(shippingRules.additionalItemRate ?? 1.0);
+    const base = Number(shippingRules.tier1 ?? shippingRules.baseRate ?? shipping ?? 1.0);
+    const extra = Number(shippingRules.tierBeyond10 ?? shippingRules.additionalItemRate ?? 1.0);
 
-    if (itemCount === 1) return base;
+    if (itemCount === 1) return Number(shippingRules.tier1 ?? base);
     if (itemCount === 2) return Number(shippingRules.tier2 ?? (base + extra));
     if (itemCount === 3) return Number(shippingRules.tier3 ?? (base + extra * 2));
-    if (itemCount === 4) return Number(shippingRules.tier4Plus ?? (base + extra * 3));
-    
-    // 5 or more items
-    const tier4 = Number(shippingRules.tier4Plus ?? (base + extra * 3));
-    return tier4 + (itemCount - 4) * extra;
+    if (itemCount === 4) return Number(shippingRules.tier4 ?? shippingRules.tier4Plus ?? (base + extra * 3));
+    if (itemCount === 5) return Number(shippingRules.tier5 ?? (base + extra * 4));
+    if (itemCount === 6) return Number(shippingRules.tier6 ?? (base + extra * 5));
+    if (itemCount === 7) return Number(shippingRules.tier7 ?? (base + extra * 6));
+    if (itemCount === 8) return Number(shippingRules.tier8 ?? (base + extra * 7));
+    if (itemCount === 9) return Number(shippingRules.tier9 ?? (base + extra * 8));
+    if (itemCount === 10) return Number(shippingRules.tier10 ?? (base + extra * 9));
+
+    // 11 or more items:
+    const tier10Val = Number(shippingRules.tier10 ?? (base + extra * 9));
+    return tier10Val + (itemCount - 10) * extra;
   };
 
   const shippingTotal = calculateShipping();

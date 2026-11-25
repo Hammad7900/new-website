@@ -36,9 +36,17 @@ function loadStoreState() {
         'shippingRules' => [
             'baseRate' => 1.0,
             'additionalItemRate' => 1.0,
+            'tier1' => 1.0,
             'tier2' => 2.0,
             'tier3' => 3.0,
-            'tier4Plus' => 4.0,
+            'tier4' => 4.0,
+            'tier5' => 5.0,
+            'tier6' => 6.0,
+            'tier7' => 7.0,
+            'tier8' => 8.0,
+            'tier9' => 9.0,
+            'tier10' => 10.0,
+            'tierBeyond10' => 1.0,
         ],
         'collections' => [
             ['id' => 'col-jewelry', 'name' => 'Fine Jewelry', 'slug' => 'jewelry', 'description' => 'Curated body chains, necklaces, and delicate luxury accents'],
@@ -47,6 +55,7 @@ function loadStoreState() {
             ['id' => 'col-wigs', 'name' => 'Virgin Hair & Wigs', 'slug' => 'wigs', 'description' => 'Handcrafted virgin human hair and couture styling'],
         ],
         'adminPassword' => '',
+        'adminMasterKey' => '',
         'adminAuthRequired' => false,
         'coupons' => [],
         'orders' => [],
@@ -104,10 +113,12 @@ function saveStoreState($changes) {
 }
 
 function adminPasswordIsValid($expected) {
-    global $ADMIN_AUTH_DISABLED;
-    if ($ADMIN_AUTH_DISABLED) return true;
+    $state = loadStoreState();
+    if (empty($state['adminAuthRequired']) || empty($state['adminPassword'])) {
+        return true;
+    }
     $provided = $_SERVER['HTTP_X_ADMIN_PASSWORD'] ?? '';
-    return $expected !== '' && $provided !== '' && hash_equals($expected, $provided);
+    return $provided !== '' && hash_equals((string)$state['adminPassword'], $provided);
 }
 
 // Robust HTTP POST helper with SSL compatibility for Hostinger
@@ -214,6 +225,7 @@ if (str_ends_with($uri, '/admin-auth') || $endpoint === 'admin-auth') {
             'success' => true,
             'passwordRequired' => !empty($state['adminAuthRequired']),
             'hasPassword' => !empty($state['adminPassword']),
+            'hasMasterKey' => !empty($state['adminMasterKey']),
         ]);
     }
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') sendJson(405, ['success' => false, 'error' => 'GET or POST required.']);
@@ -221,25 +233,55 @@ if (str_ends_with($uri, '/admin-auth') || $endpoint === 'admin-auth') {
     $body = json_decode(file_get_contents('php://input'), true) ?: [];
     $action = $body['action'] ?? '';
 
-    if ($action === 'change' || $action === 'set') {
+    // Set Initial Password & Master Security Key
+    if ($action === 'set') {
         $newPass = trim((string)($body['newPassword'] ?? ''));
+        $masterKey = trim((string)($body['masterKey'] ?? ''));
         $requireAuth = isset($body['requireAuth']) ? (bool)$body['requireAuth'] : true;
 
-        if (!empty($state['adminAuthRequired']) && !empty($state['adminPassword']) && $action === 'change') {
+        $changes = [];
+        if ($newPass !== '') $changes['adminPassword'] = $newPass;
+        if ($masterKey !== '') $changes['adminMasterKey'] = $masterKey;
+        $changes['adminAuthRequired'] = ($requireAuth && (!empty($newPass) || !empty($state['adminPassword'])));
+
+        $saved = saveStoreState($changes);
+        sendJson(200, [
+            'success' => true,
+            'message' => 'Admin security settings and Master Key configured.',
+            'passwordRequired' => !empty($saved['adminAuthRequired']),
+            'hasMasterKey' => !empty($saved['adminMasterKey']),
+        ]);
+    }
+
+    // Change Password (PROTECTED by Master Security Key)
+    if ($action === 'change') {
+        if (!empty($state['adminMasterKey'])) {
+            $providedKey = trim((string)($body['masterKey'] ?? ''));
+            if ($providedKey === '' || !hash_equals((string)$state['adminMasterKey'], $providedKey)) {
+                sendJson(403, [
+                    'success' => false,
+                    'error' => 'Unauthorized: Incorrect Master Security Key. Password change blocked.'
+                ]);
+            }
+        } elseif (!empty($state['adminPassword'])) {
             $curr = (string)($body['currentPassword'] ?? '');
             if (!hash_equals((string)$state['adminPassword'], $curr)) {
                 sendJson(401, ['success' => false, 'error' => 'Current password does not match.']);
             }
         }
 
-        $saved = saveStoreState([
-            'adminPassword' => $newPass,
-            'adminAuthRequired' => ($requireAuth && !empty($newPass))
-        ]);
+        $newPass = trim((string)($body['newPassword'] ?? ''));
+        $newMaster = trim((string)($body['newMasterKey'] ?? ''));
+        $changes = [];
+        if ($newPass !== '') $changes['adminPassword'] = $newPass;
+        if ($newMaster !== '') $changes['adminMasterKey'] = $newMaster;
+        if (isset($body['requireAuth'])) $changes['adminAuthRequired'] = (bool)$body['requireAuth'];
+
+        $saved = saveStoreState($changes);
         sendJson(200, [
             'success' => true,
-            'message' => 'Admin security settings updated successfully.',
-            'passwordRequired' => !empty($saved['adminAuthRequired'])
+            'message' => 'Admin password updated securely with Master Security authorization.',
+            'passwordRequired' => !empty($saved['adminAuthRequired']),
         ]);
     }
 
@@ -382,9 +424,17 @@ if (str_ends_with($uri, '/store-settings') || $endpoint === 'store-settings') {
             'shippingRules' => $state['shippingRules'] ?? [
                 'baseRate' => 1.0,
                 'additionalItemRate' => 1.0,
+                'tier1' => 1.0,
                 'tier2' => 2.0,
                 'tier3' => 3.0,
-                'tier4Plus' => 4.0,
+                'tier4' => 4.0,
+                'tier5' => 5.0,
+                'tier6' => 6.0,
+                'tier7' => 7.0,
+                'tier8' => 8.0,
+                'tier9' => 9.0,
+                'tier10' => 10.0,
+                'tierBeyond10' => 1.0,
             ],
             'adminAuthRequired' => !empty($state['adminAuthRequired']),
             'hasPassword' => !empty($state['adminPassword']),
@@ -402,12 +452,21 @@ if (str_ends_with($uri, '/store-settings') || $endpoint === 'store-settings') {
         }
     }
     if (isset($body['shippingRules']) && is_array($body['shippingRules'])) {
+        $sr = $body['shippingRules'];
         $changes['shippingRules'] = [
-            'baseRate' => (float)($body['shippingRules']['baseRate'] ?? 1.0),
-            'additionalItemRate' => (float)($body['shippingRules']['additionalItemRate'] ?? 1.0),
-            'tier2' => (float)($body['shippingRules']['tier2'] ?? 2.0),
-            'tier3' => (float)($body['shippingRules']['tier3'] ?? 3.0),
-            'tier4Plus' => (float)($body['shippingRules']['tier4Plus'] ?? 4.0),
+            'baseRate' => (float)($sr['baseRate'] ?? 1.0),
+            'additionalItemRate' => (float)($sr['additionalItemRate'] ?? 1.0),
+            'tier1' => (float)($sr['tier1'] ?? $sr['baseRate'] ?? 1.0),
+            'tier2' => (float)($sr['tier2'] ?? 2.0),
+            'tier3' => (float)($sr['tier3'] ?? 3.0),
+            'tier4' => (float)($sr['tier4'] ?? 4.0),
+            'tier5' => (float)($sr['tier5'] ?? 5.0),
+            'tier6' => (float)($sr['tier6'] ?? 6.0),
+            'tier7' => (float)($sr['tier7'] ?? 7.0),
+            'tier8' => (float)($sr['tier8'] ?? 8.0),
+            'tier9' => (float)($sr['tier9'] ?? 9.0),
+            'tier10' => (float)($sr['tier10'] ?? 10.0),
+            'tierBeyond10' => (float)($sr['tierBeyond10'] ?? 1.0),
         ];
     }
     if (isset($body['adminAuthRequired'])) {

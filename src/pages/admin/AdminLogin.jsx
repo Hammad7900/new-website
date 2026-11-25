@@ -14,7 +14,7 @@ export const AdminLogin = () => {
   const [authRequired, setAuthRequired] = useState(false);
   const [checking, setChecking] = useState(true);
 
-  const { login } = useAdminAuth();
+  const { login, isAuthenticated } = useAdminAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,13 +22,15 @@ export const AdminLogin = () => {
       .then((res) => {
         const required = Boolean(res.passwordRequired || res.authRequired);
         setAuthRequired(required);
-        // If not required, admin can enter directly
+        if (required && isAuthenticated) {
+          navigate('/admin', { replace: true });
+        }
       })
       .catch(() => {
         setAuthRequired(false);
       })
       .finally(() => setChecking(false));
-  }, []);
+  }, [isAuthenticated, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();

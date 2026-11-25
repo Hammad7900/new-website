@@ -370,7 +370,7 @@ export const Checkout = () => {
                 </p>
                 <p className="text-[11px] text-emerald-700 font-semibold mt-2 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" />
-                  Order recorded in Admin Fulfillment Pipeline for CJ Dropshipping dispatch.
+                  Order recorded in Atelier Fulfillment Pipeline for express tracked dispatch.
                 </p>
               </div>
             </div>

@@ -21,19 +21,33 @@ import {
 
 function formatDescription(desc) {
   if (!desc) return '';
-  let cleaned = desc
-    .replace(/<img[^>]*>/gi, '')
-    .replace(/style="[^"]*"/gi, '')
-    .replace(/class="[^"]*"/gi, '')
-    .replace(/contenteditable="[^"]*"/gi, '');
+  let cleaned = String(desc);
 
+  // Decode escaped HTML tags first if any (e.g. &lt;p&gt; -> <p>)
+  cleaned = cleaned
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&amp;/gi, '&')
+    .replace(/&nbsp;/gi, ' ');
+
+  // Strip all images, script, style tags and URLs
+  cleaned = cleaned
+    .replace(/<img[^>]*>/gi, '')
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/https?:\/\/[^\s"'<>]+(?:jpg|jpeg|png|gif|webp)[^\s"'<>]*/gi, '')
+    .replace(/https?:\/\/(?:[a-zA-Z0-9-]+\.)?cjdropshipping\.com[^\s"'<>]*/gi, '');
+
+  // Convert line breaks and paragraph tags into clean newlines
   cleaned = cleaned
     .replace(/<br\s*[\/]?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
     .replace(/<\/div>/gi, '\n')
     .replace(/<\/li>/gi, '\n')
-    .replace(/<[^>]+>/g, '');
+    .replace(/<[^>]+>/g, ''); // strip any remaining tags
 
+  // Second pass decode for any remaining entities
   cleaned = cleaned
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
@@ -41,11 +55,13 @@ function formatDescription(desc) {
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>');
 
-  return cleaned
+  // Split, trim, remove empty lines
+  const lines = cleaned
     .split('\n')
     .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .join('\n\n');
+    .filter((line) => line.length > 0 && !line.startsWith('src=') && !line.startsWith('http'));
+
+  return lines.join('\n\n');
 }
 
 export const ProductPage = () => {
@@ -390,7 +406,11 @@ export const ProductPage = () => {
 
         {/* Related Products */}
         <div className="mt-20">
-          <RelatedProducts currentProductId={product.id} category={product.category} />
+          <RelatedProducts
+            currentProductId={product.id}
+            category={product.category}
+            collectionSlug={product.collectionSlug}
+          />
         </div>
       </div>
     </div>

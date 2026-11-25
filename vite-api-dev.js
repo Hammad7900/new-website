@@ -43,15 +43,24 @@ function loadStoreState() {
     if (fs.existsSync(DATA_FILE)) {
       const content = fs.readFileSync(DATA_FILE, 'utf-8');
       const parsed = JSON.parse(content);
+      const defaultRules = {
+        baseRate: 1.0,
+        additionalItemRate: 1.0,
+        tier1: 1.0,
+        tier2: 2.0,
+        tier3: 3.0,
+        tier4: 4.0,
+        tier5: 5.0,
+        tier6: 6.0,
+        tier7: 7.0,
+        tier8: 8.0,
+        tier9: 9.0,
+        tier10: 10.0,
+        tierBeyond10: 1.0,
+      };
       return {
         shippingCost: typeof parsed.shippingCost === 'number' ? parsed.shippingCost : 1.0,
-        shippingRules: parsed.shippingRules || {
-          baseRate: 1.0,
-          additionalItemRate: 1.0,
-          tier2: 2.0,
-          tier3: 3.0,
-          tier4Plus: 4.0,
-        },
+        shippingRules: parsed.shippingRules ? { ...defaultRules, ...parsed.shippingRules } : defaultRules,
         collections: Array.isArray(parsed.collections) ? parsed.collections : [
           { id: 'col-jewelry', name: 'Fine Jewelry', slug: 'jewelry', description: 'Curated body chains, necklaces, and delicate luxury accents' },
           { id: 'col-accessories', name: 'Designer Accessories', slug: 'accessories', description: 'Atelier tech cases, daily essentials, and modern accents' },
@@ -59,6 +68,7 @@ function loadStoreState() {
           { id: 'col-wigs', name: 'Virgin Hair & Wigs', slug: 'wigs', description: 'Handcrafted virgin human hair and couture styling' },
         ],
         adminPassword: parsed.adminPassword || '',
+        adminMasterKey: parsed.adminMasterKey || '',
         adminAuthRequired: Boolean(parsed.adminAuthRequired),
         coupons: Array.isArray(parsed.coupons) ? parsed.coupons : [],
         orders: Array.isArray(parsed.orders) ? parsed.orders : [],
@@ -74,9 +84,17 @@ function loadStoreState() {
     shippingRules: {
       baseRate: 1.0,
       additionalItemRate: 1.0,
+      tier1: 1.0,
       tier2: 2.0,
       tier3: 3.0,
-      tier4Plus: 4.0,
+      tier4: 4.0,
+      tier5: 5.0,
+      tier6: 6.0,
+      tier7: 7.0,
+      tier8: 8.0,
+      tier9: 9.0,
+      tier10: 10.0,
+      tierBeyond10: 1.0,
     },
     collections: [
       { id: 'col-jewelry', name: 'Fine Jewelry', slug: 'jewelry', description: 'Curated body chains, necklaces, and delicate luxury accents' },
@@ -85,6 +103,7 @@ function loadStoreState() {
       { id: 'col-wigs', name: 'Virgin Hair & Wigs', slug: 'wigs', description: 'Handcrafted virgin human hair and couture styling' },
     ],
     adminPassword: '',
+    adminMasterKey: '',
     adminAuthRequired: false,
     coupons: [
       { code: 'SAVE10', type: 'percentage', value: 10, expiry: '2027-12-31', createdAt: new Date().toISOString() },
@@ -205,29 +224,55 @@ export function apiDevServerPlugin() {
               success: true,
               passwordRequired: Boolean(state.adminAuthRequired),
               hasPassword: Boolean(state.adminPassword),
+              hasMasterKey: Boolean(state.adminMasterKey),
             });
           }
 
           if (req.method === 'POST') {
             const body = await readBody(req);
             
-            // Set or Change Password
-            if (body.action === 'change' || body.action === 'set') {
+            // Set Initial Password & Master Security Key
+            if (body.action === 'set') {
               const newPass = String(body.newPassword || '').trim();
+              const masterKey = String(body.masterKey || '').trim();
               const requireAuth = body.requireAuth !== undefined ? Boolean(body.requireAuth) : true;
-              
-              if (state.adminAuthRequired && state.adminPassword && body.action === 'change') {
+
+              if (newPass) state.adminPassword = newPass;
+              if (masterKey) state.adminMasterKey = masterKey;
+              state.adminAuthRequired = requireAuth && Boolean(state.adminPassword);
+              saveStoreState(state);
+              return sendJson(res, 200, {
+                success: true,
+                message: 'Admin security settings and Master Key configured.',
+                passwordRequired: state.adminAuthRequired,
+                hasMasterKey: Boolean(state.adminMasterKey),
+              });
+            }
+
+            // Change Password (PROTECTED by Master Security Key)
+            if (body.action === 'change') {
+              if (state.adminMasterKey) {
+                const providedKey = String(body.masterKey || '').trim();
+                if (!providedKey || providedKey !== state.adminMasterKey) {
+                  return sendJson(res, 403, {
+                    success: false,
+                    error: 'Unauthorized: Incorrect Master Security Key. Password change blocked.',
+                  });
+                }
+              } else if (state.adminPassword) {
                 if (String(body.currentPassword || '') !== state.adminPassword) {
                   return sendJson(res, 401, { success: false, error: 'Current password does not match.' });
                 }
               }
 
-              state.adminPassword = newPass;
-              state.adminAuthRequired = requireAuth && Boolean(newPass);
+              const newPass = String(body.newPassword || '').trim();
+              if (newPass) state.adminPassword = newPass;
+              if (body.newMasterKey) state.adminMasterKey = String(body.newMasterKey).trim();
+              if (body.requireAuth !== undefined) state.adminAuthRequired = Boolean(body.requireAuth);
               saveStoreState(state);
               return sendJson(res, 200, {
                 success: true,
-                message: 'Admin security settings updated successfully.',
+                message: 'Admin password updated securely with Master Security authorization.',
                 passwordRequired: state.adminAuthRequired,
               });
             }
@@ -266,12 +311,21 @@ export function apiDevServerPlugin() {
               }
             }
             if (body.shippingRules && typeof body.shippingRules === 'object') {
+              const sr = body.shippingRules;
               state.shippingRules = {
-                baseRate: Number(body.shippingRules.baseRate) || 1.0,
-                additionalItemRate: Number(body.shippingRules.additionalItemRate) || 1.0,
-                tier2: Number(body.shippingRules.tier2) || 2.0,
-                tier3: Number(body.shippingRules.tier3) || 3.0,
-                tier4Plus: Number(body.shippingRules.tier4Plus) || 4.0,
+                baseRate: Number(sr.baseRate) || 1.0,
+                additionalItemRate: Number(sr.additionalItemRate) || 1.0,
+                tier1: Number(sr.tier1 ?? sr.baseRate) || 1.0,
+                tier2: Number(sr.tier2) || 2.0,
+                tier3: Number(sr.tier3) || 3.0,
+                tier4: Number(sr.tier4) || 4.0,
+                tier5: Number(sr.tier5) || 5.0,
+                tier6: Number(sr.tier6) || 6.0,
+                tier7: Number(sr.tier7) || 7.0,
+                tier8: Number(sr.tier8) || 8.0,
+                tier9: Number(sr.tier9) || 9.0,
+                tier10: Number(sr.tier10) || 10.0,
+                tierBeyond10: Number(sr.tierBeyond10) || 1.0,
               };
             }
             if (body.adminAuthRequired !== undefined) {

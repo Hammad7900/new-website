@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { BRAND } from '../../config/constants';
+import { useAdminAuth } from '../../context/AdminAuthContext';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -13,6 +14,7 @@ import {
   Layers,
   Truck,
   KeyRound,
+  LogOut,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -28,9 +30,11 @@ const NAV_ITEMS = [
 export const AdminLayout = ({ children, title = 'Management Dashboard' }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout } = useAdminAuth();
 
   const handleLogout = () => {
-    navigate('/');
+    logout();
+    navigate('/admin/login', { replace: true });
   };
 
   const isActive = (path) => {
@@ -99,7 +103,7 @@ export const AdminLayout = ({ children, title = 'Management Dashboard' }) => {
           >
             <span className="flex items-center space-x-2">
               <ExternalLink className="w-4 h-4" />
-              <span>Customer Storefront</span>
+              <span>View Storefront</span>
             </span>
             <span className="text-[10px] text-stone-500">Live</span>
           </Link>
@@ -107,10 +111,10 @@ export const AdminLayout = ({ children, title = 'Management Dashboard' }) => {
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full flex items-center space-x-2 px-3.5 py-2.5 rounded-xl text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 transition-colors"
+            className="w-full flex items-center space-x-2 px-3.5 py-2.5 rounded-xl text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 transition-colors cursor-pointer"
           >
-            <ExternalLink className="w-4 h-4" />
-            <span>Return to Store</span>
+            <LogOut className="w-4 h-4" />
+            <span>Lock & Log Out</span>
           </button>
         </div>
       </aside>

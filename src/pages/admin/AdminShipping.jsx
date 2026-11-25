@@ -7,19 +7,29 @@ import {
   Truck,
   CheckCircle2,
   AlertCircle,
-  HelpCircle,
-  Layers,
-  ArrowRight,
   Calculator,
+  Sparkles,
+  Zap,
 } from 'lucide-react';
 
 export const AdminShipping = () => {
-  const { updateShippingRules, shippingRules: ctxRules } = useCart();
+  const { updateShippingRules } = useCart();
   const [baseRate, setBaseRate] = useState(1.0);
-  const [additionalItemRate, setAdditionalItemRate] = useState(1.0);
+  const [incrementalRate, setIncrementalRate] = useState(1.0);
+
+  // 10 Individual Tiers
+  const [tier1, setTier1] = useState(1.0);
   const [tier2, setTier2] = useState(2.0);
   const [tier3, setTier3] = useState(3.0);
-  const [tier4Plus, setTier4Plus] = useState(4.0);
+  const [tier4, setTier4] = useState(4.0);
+  const [tier5, setTier5] = useState(5.0);
+  const [tier6, setTier6] = useState(6.0);
+  const [tier7, setTier7] = useState(7.0);
+  const [tier8, setTier8] = useState(8.0);
+  const [tier9, setTier9] = useState(9.0);
+  const [tier10, setTier10] = useState(10.0);
+  const [tierBeyond10, setTierBeyond10] = useState(1.0);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -28,33 +38,48 @@ export const AdminShipping = () => {
     fetchStoreSettings()
       .then((settings) => {
         const rules = settings.shippingRules || {};
-        const base = Number(rules.baseRate ?? settings.shippingCost ?? 1.0);
-        const add = Number(rules.additionalItemRate ?? 1.0);
-        setBaseRate(base);
-        setAdditionalItemRate(add);
-        setTier2(Number(rules.tier2 ?? (base + add)));
-        setTier3(Number(rules.tier3 ?? (base + add * 2)));
-        setTier4Plus(Number(rules.tier4Plus ?? (base + add * 3)));
+        const b = Number(rules.tier1 ?? rules.baseRate ?? settings.shippingCost ?? 1.0);
+        const add = Number(rules.tierBeyond10 ?? rules.additionalItemRate ?? 1.0);
+
+        setBaseRate(b);
+        setIncrementalRate(add);
+        setTier1(Number(rules.tier1 ?? b));
+        setTier2(Number(rules.tier2 ?? (b + add)));
+        setTier3(Number(rules.tier3 ?? (b + add * 2)));
+        setTier4(Number(rules.tier4 ?? rules.tier4Plus ?? (b + add * 3)));
+        setTier5(Number(rules.tier5 ?? (b + add * 4)));
+        setTier6(Number(rules.tier6 ?? (b + add * 5)));
+        setTier7(Number(rules.tier7 ?? (b + add * 6)));
+        setTier8(Number(rules.tier8 ?? (b + add * 7)));
+        setTier9(Number(rules.tier9 ?? (b + add * 8)));
+        setTier10(Number(rules.tier10 ?? (b + add * 9)));
+        setTierBeyond10(Number(rules.tierBeyond10 ?? add));
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, []);
 
-  // Auto-calculate default tiers when base or add changes, unless manually modified
-  const handleBaseChange = (val) => {
-    const num = Math.max(0, Number(val) || 0);
-    setBaseRate(num);
-    setTier2(Math.round((num + additionalItemRate) * 100) / 100);
-    setTier3(Math.round((num + additionalItemRate * 2) * 100) / 100);
-    setTier4Plus(Math.round((num + additionalItemRate * 3) * 100) / 100);
-  };
+  const handleAutoFill = () => {
+    const b = Math.max(0, Number(baseRate) || 0);
+    const inc = Math.max(0, Number(incrementalRate) || 0);
 
-  const handleAddChange = (val) => {
-    const num = Math.max(0, Number(val) || 0);
-    setAdditionalItemRate(num);
-    setTier2(Math.round((baseRate + num) * 100) / 100);
-    setTier3(Math.round((baseRate + num * 2) * 100) / 100);
-    setTier4Plus(Math.round((baseRate + num * 3) * 100) / 100);
+    setTier1(b);
+    setTier2(Math.round((b + inc) * 100) / 100);
+    setTier3(Math.round((b + inc * 2) * 100) / 100);
+    setTier4(Math.round((b + inc * 3) * 100) / 100);
+    setTier5(Math.round((b + inc * 4) * 100) / 100);
+    setTier6(Math.round((b + inc * 5) * 100) / 100);
+    setTier7(Math.round((b + inc * 6) * 100) / 100);
+    setTier8(Math.round((b + inc * 7) * 100) / 100);
+    setTier9(Math.round((b + inc * 8) * 100) / 100);
+    setTier10(Math.round((b + inc * 9) * 100) / 100);
+    setTierBeyond10(inc);
+
+    setFeedback({
+      type: 'success',
+      text: `Auto-populated all 10 tiers starting from $${b.toFixed(2)} with +$${inc.toFixed(2)} increment. Click "Save Shipping Rules" to apply.`,
+    });
+    setTimeout(() => setFeedback(null), 4000);
   };
 
   const handleSave = async (e) => {
@@ -64,16 +89,24 @@ export const AdminShipping = () => {
 
     try {
       await updateShippingRules({
-        baseRate: Number(baseRate),
-        additionalItemRate: Number(additionalItemRate),
+        baseRate: Number(tier1),
+        additionalItemRate: Number(tierBeyond10),
+        tier1: Number(tier1),
         tier2: Number(tier2),
         tier3: Number(tier3),
-        tier4Plus: Number(tier4Plus),
+        tier4: Number(tier4),
+        tier5: Number(tier5),
+        tier6: Number(tier6),
+        tier7: Number(tier7),
+        tier8: Number(tier8),
+        tier9: Number(tier9),
+        tier10: Number(tier10),
+        tierBeyond10: Number(tierBeyond10),
       });
 
       setFeedback({
         type: 'success',
-        text: 'Tiered multi-item shipping rates saved successfully.',
+        text: '10-Tier multi-item shipping rates saved and active across your store!',
       });
       setTimeout(() => setFeedback(null), 4000);
     } catch (err) {
@@ -86,19 +119,45 @@ export const AdminShipping = () => {
     }
   };
 
+  const tiersList = [
+    { label: '1 Product', val: tier1, setVal: setTier1 },
+    { label: '2 Products', val: tier2, setVal: setTier2 },
+    { label: '3 Products', val: tier3, setVal: setTier3 },
+    { label: '4 Products', val: tier4, setVal: setTier4 },
+    { label: '5 Products', val: tier5, setVal: setTier5 },
+    { label: '6 Products', val: tier6, setVal: setTier6 },
+    { label: '7 Products', val: tier7, setVal: setTier7 },
+    { label: '8 Products', val: tier8, setVal: setTier8 },
+    { label: '9 Products', val: tier9, setVal: setTier9 },
+    { label: '10 Products', val: tier10, setVal: setTier10 },
+  ];
+
   return (
-    <AdminLayout title="Tiered Shipping & Multi-Item Logistics">
-      <div className="space-y-6 max-w-4xl">
+    <AdminLayout title="10-Tier Shipping & Multi-Product Logistics">
+      <div className="space-y-6 max-w-5xl">
         {/* Header summary */}
-        <div className="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-xs">
-          <div className="flex items-center space-x-2 text-stone-500 text-xs font-semibold uppercase tracking-wider mb-1">
-            <Truck className="w-4 h-4 text-stone-900" />
-            <span>Multi-Item Dispatch Rules</span>
+        <div className="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center space-x-2 text-stone-500 text-xs font-semibold uppercase tracking-wider mb-1">
+              <Truck className="w-4 h-4 text-stone-900" />
+              <span>Multi-Item Dispatch Engine</span>
+            </div>
+            <h2 className="font-serif text-2xl text-stone-900">10-Product Shipping Matrix</h2>
+            <p className="text-xs text-stone-500 mt-1 max-w-xl leading-relaxed">
+              Set precise shipping fees for 1 product up to 10 products. Customers will be charged based on their exact cart item quantity.
+            </p>
           </div>
-          <h2 className="font-serif text-2xl text-stone-900">Tiered Shipping Matrix</h2>
-          <p className="text-xs text-stone-500 mt-1 max-w-2xl leading-relaxed">
-            Configure customer shipping fees dynamically based on cart quantity. 1 item pays the base fee, and extra items add incremental fees automatically in the cart and checkout.
-          </p>
+
+          <div className="flex items-center space-x-3">
+            <button
+              type="button"
+              onClick={handleAutoFill}
+              className="px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-900 hover:bg-amber-500/20 text-xs font-semibold rounded-2xl flex items-center space-x-2 transition-colors cursor-pointer"
+            >
+              <Zap className="w-4 h-4 text-amber-600" />
+              <span>Auto-Fill 10 Tiers</span>
+            </button>
+          </div>
         </div>
 
         {/* Feedback message */}
@@ -119,185 +178,119 @@ export const AdminShipping = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          {/* Left Form: Rate inputs */}
-          <form
-            onSubmit={handleSave}
-            className="md:col-span-7 bg-white p-6 sm:p-7 rounded-3xl border border-stone-200/80 shadow-xs space-y-5"
-          >
-            <h3 className="font-semibold text-stone-900 text-sm pb-3 border-b border-stone-100 flex items-center space-x-2">
-              <Calculator className="w-4 h-4 text-amber-500" />
-              <span>Configure Rate Tiers</span>
-            </h3>
-
-            {/* Base Rate (1 Item) */}
+        <form onSubmit={handleSave} className="space-y-6">
+          {/* Quick Config Bar */}
+          <div className="bg-stone-50 p-5 rounded-2xl border border-stone-200/80 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 mb-1">
-                Base Fee for 1st Product ($ USD) *
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-stone-700 mb-1">
+                Base Rate (1st Product) $
               </label>
               <div className="flex items-center space-x-2">
-                <span className="text-sm font-semibold text-stone-500">$</span>
+                <span className="text-xs font-mono text-stone-500">$</span>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
-                  required
                   value={baseRate}
-                  onChange={(e) => handleBaseChange(e.target.value)}
-                  className="flex-1 px-4 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 font-mono font-medium"
+                  onChange={(e) => setBaseRate(Number(e.target.value))}
+                  className="flex-1 px-3 py-2 text-xs bg-white border border-stone-200 rounded-xl font-mono"
                 />
               </div>
-              <p className="text-[10px] text-stone-400 mt-1">
-                Applied when the customer has exactly 1 product in cart.
-              </p>
             </div>
 
-            {/* Incremental Rate per Extra Item */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 mb-1">
-                Extra Fee per Additional Product ($ USD) *
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-stone-700 mb-1">
+                Extra per additional product $
               </label>
               <div className="flex items-center space-x-2">
-                <span className="text-sm font-semibold text-stone-500">+$</span>
+                <span className="text-xs font-mono text-stone-500">+$</span>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
-                  required
-                  value={additionalItemRate}
-                  onChange={(e) => handleAddChange(e.target.value)}
-                  className="flex-1 px-4 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 font-mono font-medium"
+                  value={incrementalRate}
+                  onChange={(e) => setIncrementalRate(Number(e.target.value))}
+                  className="flex-1 px-3 py-2 text-xs bg-white border border-stone-200 rounded-xl font-mono"
                 />
               </div>
-              <p className="text-[10px] text-stone-400 mt-1">
-                Added for the 2nd, 3rd, 4th, and each subsequent item.
-              </p>
-            </div>
-
-            {/* Explicit Tier Overrides */}
-            <div className="pt-4 border-t border-stone-100 space-y-3">
-              <h4 className="text-xs font-semibold text-stone-700 uppercase tracking-wider">
-                Specific Tier Overrides (Optional)
-              </h4>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[10px] font-semibold text-stone-500 mb-1">
-                    2 Items Total
-                  </label>
-                  <div className="flex items-center">
-                    <span className="text-xs text-stone-400 mr-1">$</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={tier2}
-                      onChange={(e) => setTier2(Number(e.target.value))}
-                      className="w-full px-2.5 py-1.5 text-xs bg-stone-50 border border-stone-200 rounded-lg font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-stone-500 mb-1">
-                    3 Items Total
-                  </label>
-                  <div className="flex items-center">
-                    <span className="text-xs text-stone-400 mr-1">$</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={tier3}
-                      onChange={(e) => setTier3(Number(e.target.value))}
-                      className="w-full px-2.5 py-1.5 text-xs bg-stone-50 border border-stone-200 rounded-lg font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-stone-500 mb-1">
-                    4+ Items Total
-                  </label>
-                  <div className="flex items-center">
-                    <span className="text-xs text-stone-400 mr-1">$</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={tier4Plus}
-                      onChange={(e) => setTier4Plus(Number(e.target.value))}
-                      className="w-full px-2.5 py-1.5 text-xs bg-stone-50 border border-stone-200 rounded-lg font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full py-3 px-6 bg-stone-900 hover:bg-black text-white text-xs font-semibold uppercase tracking-wider rounded-xl transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
-            >
-              {saving ? 'Saving Rules...' : 'Save Shipping Rules'}
-            </button>
-          </form>
-
-          {/* Right: Live Interactive Customer Preview */}
-          <div className="md:col-span-5 bg-stone-950 text-white p-6 rounded-3xl shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center space-x-2 text-[10px] font-bold uppercase tracking-widest text-amber-400 mb-2">
-                <span>Live Storefront Preview</span>
-              </div>
-              <h3 className="font-serif text-lg text-white">Customer Shipping Rates</h3>
-              <p className="text-[11px] text-stone-400 mt-1 mb-5">
-                Here is what customers will automatically see at Cart & Checkout:
-              </p>
-
-              <div className="space-y-2.5 divide-y divide-stone-800 text-xs">
-                <div className="pt-2.5 first:pt-0 flex items-center justify-between">
-                  <span className="text-stone-300">1 Item in cart</span>
-                  <span className="font-mono font-bold text-amber-300">
-                    ${Number(baseRate).toFixed(2)} USD
-                  </span>
-                </div>
-
-                <div className="pt-2.5 flex items-center justify-between">
-                  <span className="text-stone-300">2 Items in cart</span>
-                  <span className="font-mono font-bold text-white">
-                    ${Number(tier2).toFixed(2)} USD
-                  </span>
-                </div>
-
-                <div className="pt-2.5 flex items-center justify-between">
-                  <span className="text-stone-300">3 Items in cart</span>
-                  <span className="font-mono font-bold text-white">
-                    ${Number(tier3).toFixed(2)} USD
-                  </span>
-                </div>
-
-                <div className="pt-2.5 flex items-center justify-between">
-                  <span className="text-stone-300">4 Items in cart</span>
-                  <span className="font-mono font-bold text-white">
-                    ${Number(tier4Plus).toFixed(2)} USD
-                  </span>
-                </div>
-
-                <div className="pt-2.5 flex items-center justify-between">
-                  <span className="text-stone-300">5 Items in cart</span>
-                  <span className="font-mono font-bold text-stone-400">
-                    ${(Number(tier4Plus) + Number(additionalItemRate)).toFixed(2)} USD
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-stone-800 text-[10px] text-stone-400 flex items-center space-x-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span>Applied in real-time across shopping bag & checkout.</span>
             </div>
           </div>
-        </div>
+
+          {/* 10 Tiers Grid */}
+          <div className="bg-white p-6 sm:p-7 rounded-3xl border border-stone-200/80 shadow-xs">
+            <h3 className="font-semibold text-stone-900 text-sm mb-4 pb-3 border-b border-stone-100 flex items-center justify-between">
+              <span className="flex items-center space-x-2">
+                <Calculator className="w-4 h-4 text-amber-500" />
+                <span>Exact Rates for 1 to 10 Items</span>
+              </span>
+              <span className="text-xs text-stone-400 font-normal">
+                Customize any tier individually
+              </span>
+            </h3>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+              {tiersList.map((tier, idx) => (
+                <div
+                  key={idx}
+                  className="p-3.5 rounded-2xl bg-stone-50/70 border border-stone-200/80 hover:border-stone-400 transition-colors"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-stone-700">
+                      {tier.label}
+                    </span>
+                    <span className="text-[10px] font-mono text-stone-400">Tier {idx + 1}</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-xs font-mono text-stone-500">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      value={tier.val}
+                      onChange={(e) => tier.setVal(Number(e.target.value))}
+                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-stone-200 rounded-lg font-mono font-semibold text-stone-900 focus:outline-none focus:border-stone-900"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Beyond 10 items rate */}
+            <div className="mt-5 pt-4 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-stone-800">
+                  Orders with more than 10 products:
+                </p>
+                <p className="text-[11px] text-stone-400">
+                  Adds this incremental fee for item 11, item 12, etc. on top of Tier 10 rate.
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-stone-500 font-medium">+$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={tierBeyond10}
+                  onChange={(e) => setTierBeyond10(Number(e.target.value))}
+                  className="w-28 px-3 py-2 text-xs bg-stone-50 border border-stone-200 rounded-xl font-mono font-semibold"
+                />
+                <span className="text-xs text-stone-400 font-mono">per extra item</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full py-4 px-6 bg-stone-900 hover:bg-black text-white text-xs font-semibold uppercase tracking-widest rounded-2xl transition-all disabled:opacity-50 cursor-pointer shadow-md"
+          >
+            {saving ? 'Saving 10 Shipping Tiers...' : 'Save & Publish All 10 Shipping Tiers'}
+          </button>
+        </form>
       </div>
     </AdminLayout>
   );
