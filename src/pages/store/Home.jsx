@@ -1,7 +1,8 @@
 // src/pages/store/Home.jsx
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { HeroBanner } from '../../components/HeroBanner';
-import { CategoryPills } from '../../components/CategoryPills';
+import { CategoryPills } from '../../components/CategoryPills'; // kept for collection counts
 import { ProductCard } from '../../components/ProductCard';
 import { fetchStoreProducts, fetchCollections } from '../../services/api';
 import {
@@ -13,33 +14,90 @@ import {
   ShieldCheck,
   Truck,
   CheckCircle2,
+  X,
 } from 'lucide-react';
 
-// Curated collection visuals for Shopify-style collection cards (Flagship: Virgin Hair & Wigs)
-const COLLECTION_PRESETS = [
+// Smart fallback images matched by collection name/slug when admin hasn't uploaded a custom photo
+export function getCollectionImage(col) {
+  if (col?.image && col.image.trim() !== '') return col.image;
+  if (col?.bannerImage && col.bannerImage.trim() !== '') return col.bannerImage;
+
+  const key = `${col?.slug || ''} ${col?.name || ''}`.toLowerCase();
+  if (key.includes('curly')) {
+    return 'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=800&q=80';
+  }
+  if (key.includes('wig') || key.includes('hair') || key.includes('lace')) {
+    return 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80';
+  }
+  if (key.includes('jewel') || key.includes('ring') || key.includes('chain') || key.includes('neck') || key.includes('diamond')) {
+    return 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80';
+  }
+  if (key.includes('watch') || key.includes('horology') || key.includes('time')) {
+    return 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=800&q=80';
+  }
+  if (key.includes('dress') || key.includes('couture') || key.includes('gown')) {
+    return 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&w=800&q=80';
+  }
+  if (key.includes('leather') || key.includes('bag') || key.includes('handbag') || key.includes('tote') || key.includes('accessor')) {
+    return 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80';
+  }
+  if (key.includes('winter') || key.includes('coat') || key.includes('jacket') || key.includes('cashmere')) {
+    return 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=800&q=80';
+  }
+  if (key.includes('gym') || key.includes('active') || key.includes('fitness') || key.includes('sport')) {
+    return 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80';
+  }
+  return 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80';
+}
+
+const DEFAULT_COLLECTIONS = [
   {
-    slug: 'wigs',
-    name: 'Virgin Hair & Wigs Atelier',
-    desc: '100% Raw unprocessed human hair, undetectable Swiss HD lace, and 30-second glueless wear & go caps.',
+    slug: 'human-hair-wigs',
+    name: 'Human Hair Wigs',
+    description: 'Raw Human Hair & HD Lace Wigs — 100% unprocessed, glueless wear & go.',
     image: 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80',
   },
   {
+    slug: 'curly-wigs',
+    name: 'Curly Wigs',
+    description: 'Couture Curly & Deep Wave Wigs — bouncy curls, invisible HD lace.',
+    image: 'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    slug: 'dresses',
+    name: 'Dresses',
+    description: 'Atelier Dresses & Evening Couture — from casual chic to full glamour.',
+    image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    slug: 'bags',
+    name: 'Bags',
+    description: 'Designer Handbags & Leather Goods — structured luxury for every occasion.',
+    image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    slug: 'winter-wear',
+    name: 'Winter Wear',
+    description: 'Winter Cashmere & Luxury Coats — warmth wrapped in couture.',
+    image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=800&q=80',
+  },
+  {
     slug: 'jewelry',
-    name: 'Haute Jewelry & Chains',
-    desc: 'Pure gold accents, hand-polished body chains & radiant luxury pendants.',
+    name: 'Jewelry',
+    description: 'Fine Jewelry, Chains & Diamonds — pure gold accents and radiant pendants.',
     image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80',
   },
   {
-    slug: 'watches',
-    name: 'Timepieces & Horology',
-    desc: 'Precision movements, timeless stainless bezels & scratch-resistant sapphire glass.',
-    image: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=800&q=80',
+    slug: 'gym-wear',
+    name: 'Gym Wear',
+    description: 'Atelier Active & Luxury Gym Wear — performance meets premium fabric.',
+    image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80',
   },
   {
-    slug: 'leather',
-    name: 'Artisan Leather Goods',
-    desc: 'Full-grain wallets, bespoke messenger bags & handcrafted atelier folios.',
-    image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=80',
+    slug: 'watches',
+    name: 'Watches',
+    description: 'Horology & Precision Watches — timeless movements, sapphire crystal.',
+    image: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=800&q=80',
   },
 ];
 
@@ -79,17 +137,28 @@ const REVIEWS = [
 ];
 
 export const Home = () => {
-  const [products, setProducts] = useState([]);
+  const navigate = useNavigate();
+  const [allListedProducts, setAllListedProducts] = useState([]);
+  const [products, setProducts] = useState([]); // eslint-disable-line
   const [collections, setCollections] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [catalogError, setCatalogError] = useState('');
-  const [activeCategory, setActiveCategory] = useState('All');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('popular');
+  const [loading, setLoading] = useState(true); // eslint-disable-line
+  const [catalogError, setCatalogError] = useState(''); // eslint-disable-line
+  const [activeCategory, setActiveCategory] = useState('All'); // eslint-disable-line
+  const [searchQuery, setSearchQuery] = useState(''); // eslint-disable-line
+  const [sortBy, setSortBy] = useState('popular'); // eslint-disable-line
 
   useEffect(() => {
     fetchCollections()
       .then((cols) => setCollections(cols || []))
+      .catch(() => {});
+
+    // Load all listed products once for marquee & accurate collection counts
+    fetchStoreProducts()
+      .then((res) => {
+        if (res && Array.isArray(res.data)) {
+          setAllListedProducts(res.data);
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -120,22 +189,36 @@ export const Home = () => {
     };
   }, [activeCategory, searchQuery]);
 
+  // Accurate counts across all collections
   const collectionCounts = React.useMemo(() => {
-    const counts = { All: products.length };
-    products.forEach((p) => {
+    const counts = { All: allListedProducts.length };
+    allListedProducts.forEach((p) => {
       const slug = (p.collectionSlug || '').toLowerCase();
       if (slug) {
         counts[slug] = (counts[slug] || 0) + 1;
       }
     });
     return counts;
-  }, [products]);
+  }, [allListedProducts]);
+
+  // Showcase products for top auto-moving belt: ONLY unassigned / storefront products (bina collection wale)
+  // Products assigned to a collection stay inside their dedicated collection page and do NOT clutter the homepage!
+  const marqueeProducts = React.useMemo(() => {
+    return allListedProducts.filter((p) => {
+      const slug = (p.collectionSlug || '').trim().toLowerCase();
+      return !slug || slug === 'unassigned' || slug === '--unassigned--' || slug === 'none';
+    });
+  }, [allListedProducts]);
 
   const handleSelectCollectionCard = (slug) => {
-    setActiveCategory(slug);
-    const catalogElement = document.getElementById('catalog');
-    if (catalogElement) {
-      catalogElement.scrollIntoView({ behavior: 'smooth' });
+    if (slug && slug !== 'All') {
+      navigate(`/collection/${slug}`);
+    } else {
+      setActiveCategory('All');
+      const catalogElement = document.getElementById('catalog');
+      if (catalogElement) {
+        catalogElement.scrollIntoView({ behavior: 'smooth' });
+      }
     }
   };
 
@@ -145,15 +228,87 @@ export const Home = () => {
     return (b.reviewsCount || 0) - (a.reviewsCount || 0);
   });
 
-  // Merge dynamic collections with visual presets
-  const displayCollections = (collections.length > 0 ? collections : COLLECTION_PRESETS).slice(0, 4);
+  // Display ALL collections created by admin (not capped at 4!)
+  const displayCollections = collections.length > 0 ? collections : DEFAULT_COLLECTIONS;
+  const activeCollectionObj = displayCollections.find(
+    (c) => (c.slug || '').toLowerCase() === activeCategory.toLowerCase()
+  );
 
   return (
     <div className="min-h-screen bg-[#faf8f5]">
-      {/* 1. 3D Hero Banner */}
+      {/* 1. 3D & Video Hero Banner */}
       <HeroBanner />
 
-      {/* 2. Shopify-Style Collections Showcase Section */}
+      {/* 2. Auto-Moving Signature Products Carousel (First Showcase Section) */}
+      {marqueeProducts.length > 0 && (
+        <section className="py-14 sm:py-18 border-b border-stone-200/80 overflow-hidden bg-white/60">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div>
+              <div className="flex items-center space-x-2 text-amber-700 text-xs font-semibold uppercase tracking-widest mb-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Signature Arrivals</span>
+              </div>
+              <h2 className="font-serif text-2xl sm:text-3xl text-stone-900 tracking-tight">
+                Trending Atelier Highlights
+              </h2>
+            </div>
+            <p className="text-xs text-stone-500">
+              Hover to pause · Scroll or tap any item to order directly
+            </p>
+          </div>
+
+          <div className="w-full overflow-x-auto no-scrollbar py-2">
+            <div className={marqueeProducts.length >= 3 ? 'animate-marquee flex gap-6 px-4' : 'max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6'}>
+              {(marqueeProducts.length >= 3 ? [...marqueeProducts, ...marqueeProducts] : marqueeProducts).map((prod, index) => {
+                const img = (prod.images && prod.images[0]) || '';
+                return (
+                  <Link
+                    key={`${prod.id}-${index}`}
+                    to={`/product/${prod.id}`}
+                    className="group w-64 sm:w-72 shrink-0 bg-white border border-stone-200/80 rounded-3xl overflow-hidden hover-3d-card hover:border-amber-300/80 flex flex-col"
+                  >
+                    <div className="relative aspect-square bg-stone-100 overflow-hidden">
+                      {img && (
+                        <img
+                          src={img}
+                          alt={prod.name}
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-stone-950/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="absolute bottom-3 inset-x-3 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                        <span className="block w-full py-2 bg-stone-950/95 text-white text-[10px] font-bold uppercase tracking-widest text-center rounded-xl">
+                          Shop Now
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-4 flex flex-col flex-1 justify-between">
+                      <div>
+                        <span className="text-[9px] uppercase tracking-widest font-semibold text-amber-700">
+                          {prod.collectionSlug || prod.category || 'Atelier'}
+                        </span>
+                        <h3 className="font-serif text-sm font-medium text-stone-900 line-clamp-1 mt-0.5 group-hover:text-amber-700 transition-colors">
+                          {prod.name}
+                        </h3>
+                      </div>
+                      <div className="mt-2.5 pt-2.5 border-t border-stone-100 flex items-center justify-between">
+                        <span className="font-semibold text-stone-900 text-sm">
+                          ${Number(prod.price || 0).toFixed(2)}
+                        </span>
+                        <span className="text-[10px] font-semibold text-stone-500 group-hover:text-stone-900 flex items-center">
+                          Order <ArrowRight className="w-3 h-3 ml-1" />
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 3. Shopify-Style Collections Showcase Section (Shows ALL Admin Collections) */}
       <section id="collections" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 border-b border-stone-200">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
           <div>
@@ -166,38 +321,40 @@ export const Home = () => {
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-stone-500 max-w-sm">
-            Hand-selected luxury departments crafted for discerning collectors and daily elegance.
+            Tap any collection below to view all pieces curated inside that department.
           </p>
         </div>
 
-        {/* 4-Card Shopify-Style Grid */}
+        {/* Dynamic Grid showing every collection with its matched or uploaded photo */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {displayCollections.map((col, idx) => {
-            const preset = COLLECTION_PRESETS[idx % COLLECTION_PRESETS.length];
-            const img = col.image || col.bannerImage || preset.image;
-            const desc = col.description || preset.desc;
+            const img = getCollectionImage(col);
+            const desc = col.description || 'Curated luxury pieces selected for our atelier catalog.';
             const count = collectionCounts[col.slug?.toLowerCase()] ?? 0;
+            const isSelected = activeCategory.toLowerCase() === (col.slug || '').toLowerCase();
 
             return (
               <div
                 key={col.slug || col.id || idx}
                 onClick={() => handleSelectCollectionCard(col.slug || col.name)}
-                className="group relative rounded-3xl overflow-hidden cursor-pointer bg-stone-900 border border-stone-200/60 shadow-xs hover:shadow-xl transition-all duration-500 h-80 flex flex-col justify-end p-6"
+                className={`group relative rounded-3xl overflow-hidden cursor-pointer bg-stone-900 border shadow-xs hover-3d-card h-80 flex flex-col justify-end p-6 ${
+                  isSelected ? 'border-amber-400 ring-2 ring-amber-400/40' : 'border-stone-200/60'
+                }`}
               >
-                {/* Background Image with Zoom */}
+                {/* Background Image with Smooth Zoom */}
                 <div className="absolute inset-0 z-0">
                   <img
                     src={img}
                     alt={col.name}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-75 group-hover:opacity-65"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-80 group-hover:opacity-65"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/40 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/45 to-transparent" />
                 </div>
 
                 {/* Content Overlay */}
                 <div className="relative z-10 space-y-2">
-                  <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-stone-900/80 backdrop-blur-xs border border-white/20 text-white text-[10px] font-bold uppercase tracking-wider">
-                    <span>{count > 0 ? `${count} items` : 'Atelier Curated'}</span>
+                  <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-stone-900/85 backdrop-blur-xs border border-white/20 text-white text-[10px] font-bold uppercase tracking-wider">
+                    <span>{count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Atelier Curated'}</span>
                   </div>
 
                   <h3 className="font-serif text-xl sm:text-2xl text-white font-medium group-hover:text-amber-300 transition-colors">
@@ -208,8 +365,8 @@ export const Home = () => {
                     {desc}
                   </p>
 
-                  <div className="pt-2 flex items-center text-xs font-bold uppercase tracking-wider text-amber-400 group-hover:translate-x-1 transition-transform">
-                    <span>Explore Department</span>
+                  <div className="pt-2 flex items-center text-xs font-bold uppercase tracking-wider text-amber-400 group-hover:translate-x-1.5 transition-transform">
+                    <span>Open Collection</span>
                     <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                   </div>
                 </div>
@@ -219,110 +376,9 @@ export const Home = () => {
         </div>
       </section>
 
-      {/* 3. Main Catalog Section */}
-      <section id="catalog" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-        {/* Header with Search and Sort */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-          <div>
-            <div className="flex items-center space-x-2 text-stone-500 text-xs font-semibold uppercase tracking-widest mb-1.5">
-              <span className="w-2 h-2 rounded-full bg-stone-900"></span>
-              <span>Our Collection</span>
-            </div>
-            <h2 className="font-serif text-3xl sm:text-4xl text-stone-900 tracking-tight">
-              Products
-            </h2>
-          </div>
 
-          {/* Search & Sort Controls */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search products or SKU..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-64 pl-9 pr-4 py-2.5 text-xs bg-white border border-stone-200 rounded-full focus:outline-none focus:border-stone-900 transition-colors shadow-xs"
-              />
-              <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3.5 top-3" />
-            </div>
 
-            <div className="flex items-center space-x-2">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                aria-label="Sort products"
-                className="bg-white border border-stone-200 text-stone-700 text-xs rounded-full px-3.5 py-2.5 focus:outline-none focus:border-stone-900 transition-colors shadow-xs cursor-pointer font-medium"
-              >
-                <option value="popular">Most Popular</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Category Filter Pills */}
-        <div className="mb-10">
-          <CategoryPills
-            activeCategory={activeCategory}
-            onSelectCategory={setActiveCategory}
-            collections={collections}
-            counts={collectionCounts}
-          />
-        </div>
-
-        {/* Product Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <div
-                key={i}
-                className="bg-white border border-stone-200/60 rounded-3xl p-4 animate-pulse h-96 flex flex-col justify-between"
-              >
-                <div className="bg-stone-200/80 rounded-2xl aspect-square w-full"></div>
-                <div className="space-y-2 mt-4">
-                  <div className="h-3 bg-stone-200/80 rounded w-1/3"></div>
-                  <div className="h-4 bg-stone-200/80 rounded w-4/5"></div>
-                  <div className="h-3 bg-stone-200/80 rounded w-1/2"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : catalogError ? (
-          <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-rose-200">
-            <h3 className="font-serif text-xl text-stone-800 mb-2">Products could not be loaded</h3>
-            <p className="text-xs text-rose-700">{catalogError}</p>
-          </div>
-        ) : sortedProducts.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-stone-300">
-            <h3 className="font-serif text-xl text-stone-800 mb-2">
-              {searchQuery || activeCategory !== 'All' ? 'No listed products found' : 'Products are being prepared'}
-            </h3>
-            <p className="text-xs text-stone-500 mb-6">
-              {searchQuery || activeCategory !== 'All'
-                ? 'Try another search or reset your filters.'
-                : 'New products will appear here after they are published from the atelier admin panel.'}
-            </p>
-            <button
-              onClick={() => {
-                setActiveCategory('All');
-                setSearchQuery('');
-              }}
-              className="px-6 py-2.5 bg-stone-900 text-white text-xs font-semibold uppercase tracking-wider rounded-full hover:bg-black transition-colors"
-            >
-              Reset Filters
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-            {sortedProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* 4. Client Testimonials & Reviews Section */}
+      {/* 5. Client Testimonials & Reviews Section */}
       <section className="bg-white py-20 border-y border-stone-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-14">
@@ -343,7 +399,7 @@ export const Home = () => {
             {REVIEWS.map((rev, i) => (
               <div
                 key={i}
-                className="bg-[#faf8f5] border border-stone-200/80 rounded-3xl p-6 flex flex-col justify-between hover:shadow-md transition-shadow relative"
+                className="bg-[#faf8f5] border border-stone-200/80 rounded-3xl p-6 flex flex-col justify-between hover-3d-card relative"
               >
                 <Quote className="w-8 h-8 text-stone-200 absolute top-5 right-5" />
                 <div className="space-y-3 z-10">
@@ -378,7 +434,7 @@ export const Home = () => {
         </div>
       </section>
 
-      {/* 5. Brand Craftsmanship & Atelier Standards Spotlight */}
+      {/* 6. Brand Craftsmanship & Atelier Standards Spotlight */}
       <section className="bg-stone-900 text-white py-20 lg:py-28 overflow-hidden relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
@@ -406,7 +462,7 @@ export const Home = () => {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-stone-700 bg-stone-800/60 p-8 sm:p-12 space-y-4">
+            <div className="rounded-3xl border border-stone-700 bg-stone-800/60 p-8 sm:p-12 space-y-4 hover-3d-card">
               <p className="text-xs uppercase tracking-widest text-amber-400 font-bold">Client Assurance</p>
               <p className="font-serif text-2xl text-white">Worldwide express courier shipping with dedicated concierge support.</p>
               <div className="pt-4 flex items-center space-x-6 text-xs text-stone-400">

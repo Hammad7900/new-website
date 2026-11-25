@@ -7,33 +7,41 @@ export const ProductCard = ({ product }) => {
   const image = (product.images && product.images[0]) || '';
 
   return (
-    <div className="group relative flex flex-col bg-white border border-stone-200/80 rounded-2xl overflow-hidden hover:shadow-xl hover:border-stone-300 transition-all duration-300">
+    <div className="group relative flex flex-col bg-white border border-stone-200/80 rounded-3xl overflow-hidden hover-3d-card hover:border-amber-300/60">
       {/* Product Image Area */}
       <Link to={`/product/${product.id}`} className="relative aspect-square w-full overflow-hidden bg-stone-100 block">
-        {image && <img
-          src={image}
-          alt={product.name}
-          className="h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
-          loading="lazy"
-        />}
+        {image && (
+          <img
+            src={image}
+            alt={product.name}
+            className="h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-110"
+            loading="lazy"
+          />
+        )}
+
+        {/* Subtle Dark Gradient on Hover */}
+        <div className="absolute inset-0 bg-gradient-to-t from-stone-950/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
-            {Number.isFinite(product.stock) && product.stock > 0 && product.stock <= 10 && (
-            <span className="bg-amber-600/90 text-white text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full shadow-sm backdrop-blur-xs">
+          {Number.isFinite(product.stock) && product.stock > 0 && product.stock <= 10 && (
+            <span className="bg-amber-600/95 text-white text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full shadow-sm backdrop-blur-xs">
               Only {product.stock} Left
             </span>
           )}
           {product.compareAtPrice && product.compareAtPrice > product.price && (
-            <span className="bg-stone-900/90 text-gold-400 text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full shadow-sm backdrop-blur-xs">
+            <span className="bg-stone-900/95 text-amber-400 text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full shadow-sm backdrop-blur-xs">
               Save {Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)}%
             </span>
           )}
         </div>
 
         {/* Quick Action Overlay */}
-        <div className="absolute inset-x-3 bottom-3 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 z-10">
-          <span className="py-2.5 px-3 bg-stone-900/95 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 shadow-md"><span>View options</span><ExternalLink className="w-3.5 h-3.5" /></span>
+        <div className="absolute inset-x-3 bottom-3 opacity-0 translate-y-3 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 z-10">
+          <span className="py-2.5 px-4 bg-stone-950/95 hover:bg-black text-white text-[11px] font-bold uppercase tracking-wider rounded-2xl flex items-center justify-center gap-2 shadow-lg backdrop-blur-md">
+            <span>Shop Now & Options</span>
+            <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+          </span>
         </div>
       </Link>
 

@@ -17,6 +17,8 @@ import {
   Truck,
   Sparkles,
   Lock,
+  Zap,
+  ArrowRight,
 } from 'lucide-react';
 
 function formatDescription(desc) {
@@ -113,6 +115,14 @@ export const ProductPage = () => {
     addToCart(product, quantity, variantToUse);
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2200);
+  };
+
+  const handleBuyNow = () => {
+    if (!product) return;
+    const variantToUse =
+      selectedVariant || { vid: product.id || 'default', name: 'Standard Edition', price: product.price || 0 };
+    addToCart(product, quantity, variantToUse);
+    navigate('/checkout');
   };
 
   if (loading) {
@@ -353,38 +363,51 @@ export const ProductPage = () => {
               </div>
             </div>
 
-            {/* Add to Cart Actions */}
-            <div className="flex gap-3 pt-2">
+            {/* Direct Order & Cart Actions */}
+            <div className="space-y-3 pt-2">
               <button
                 type="button"
-                onClick={handleAddToCart}
+                onClick={handleBuyNow}
                 disabled={!product}
-                className={`flex-1 py-4 px-6 rounded-2xl font-semibold text-xs sm:text-sm uppercase tracking-wider transition-all shadow-md flex items-center justify-center space-x-2 cursor-pointer ${
-                  addedToCart
-                    ? 'bg-emerald-600 text-white'
-                    : product
-                    ? 'bg-stone-900 hover:bg-black text-white'
-                    : 'bg-stone-300 text-stone-600 cursor-not-allowed'
-                }`}
+                className="w-full py-4 px-6 rounded-2xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold text-xs sm:text-sm uppercase tracking-widest transition-all duration-300 shadow-lg hover:shadow-amber-500/30 hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50 group"
               >
-                {addedToCart ? (
-                  <>
-                    <Check className="w-5 h-5" />
-                    <span>Added to Shopping Bag</span>
-                  </>
-                ) : (
-                  <>
-                    <ShoppingBag className="w-5 h-5" />
-                    <span>Add to Bag</span>
-                  </>
-                )}
+                <Zap className="w-4 h-4 fill-stone-950" />
+                <span>Shop Now · Direct Order (${(price * quantity).toFixed(2)})</span>
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </button>
-              <Link
-                to="/cart"
-                className="py-4 px-6 rounded-2xl border border-stone-300 hover:border-stone-900 text-stone-800 font-semibold text-xs sm:text-sm uppercase tracking-wider transition-colors flex items-center justify-center"
-              >
-                View Bag
-              </Link>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  disabled={!product}
+                  className={`flex-1 py-3.5 px-6 rounded-2xl font-semibold text-xs uppercase tracking-wider transition-all shadow-sm hover:-translate-y-0.5 flex items-center justify-center space-x-2 cursor-pointer ${
+                    addedToCart
+                      ? 'bg-emerald-600 text-white'
+                      : product
+                      ? 'bg-stone-900 hover:bg-black text-white'
+                      : 'bg-stone-300 text-stone-600 cursor-not-allowed'
+                  }`}
+                >
+                  {addedToCart ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Added to Shopping Bag</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="w-4 h-4" />
+                      <span>Add to Bag</span>
+                    </>
+                  )}
+                </button>
+                <Link
+                  to="/cart"
+                  className="py-3.5 px-6 rounded-2xl border border-stone-300 hover:border-stone-900 bg-white text-stone-800 font-semibold text-xs uppercase tracking-wider transition-all hover:-translate-y-0.5 flex items-center justify-center"
+                >
+                  View Bag
+                </Link>
+              </div>
             </div>
 
             {/* 3 Balanced Luxury Trust Badges */}
@@ -396,9 +419,9 @@ export const ProductPage = () => {
               ].map(({ Icon, label }) => (
                 <div
                   key={label}
-                  className="flex flex-col items-center text-center space-y-1.5 p-3 rounded-2xl bg-white border border-stone-200/70"
+                  className="flex flex-col items-center text-center space-y-1.5 p-3 rounded-2xl bg-white border border-stone-200/70 hover-3d-card"
                 >
-                  <Icon className="w-4 h-4 text-stone-700" />
+                  <Icon className="w-4 h-4 text-amber-600" />
                   <span className="text-[10px] font-semibold text-stone-600 uppercase tracking-tight">
                     {label}
                   </span>

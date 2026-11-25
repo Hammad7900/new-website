@@ -55,24 +55,9 @@ export const Checkout = () => {
   const [errors, setErrors] = useState({});
   const [paymentNotice, setPaymentNotice] = useState('');
 
-  // Restore pre-filled address if user had entered it before redirect
+  // Don't auto-fill test data; keep fields clean with placeholders so customer enters fresh details
   useEffect(() => {
-    try {
-      const saved = sessionStorage.getItem('aura_pending_order') || localStorage.getItem('aura_pending_order');
-      if (saved) {
-        const order = JSON.parse(saved);
-        if (order.customer?.email) setEmail(order.customer.email);
-        if (order.customer?.phone) setPhone(order.customer.phone);
-        if (order.customer?.name) setFullName(order.customer.name);
-        if (order.shippingAddress?.street) setStreet(order.shippingAddress.street);
-        if (order.shippingAddress?.city) setCity(order.shippingAddress.city);
-        if (order.shippingAddress?.state) setStateProvince(order.shippingAddress.state);
-        if (order.shippingAddress?.zip) setPostalCode(order.shippingAddress.zip);
-        if (order.shippingAddress?.countryCode) setCountry(order.shippingAddress.countryCode);
-      }
-    } catch (e) {
-      // ignore
-    }
+    // Keep empty by default
   }, []);
 
   // Auto-detect return from Whop redirect (e.g. ?status=success or ?payment=succeeded)
@@ -268,40 +253,8 @@ export const Checkout = () => {
     }
 
     try {
-      // Request dynamic checkout link for the EXACT total amount
-      const res = await fetch('/api/create-whop-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: total,
-          orderId: `ORD-${Date.now()}`,
-          customerEmail: email.trim(),
-          customerName: fullName.trim(),
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      let targetUrl = data.checkoutUrl;
-
-      if (!targetUrl) {
-        targetUrl = buildPrefilledWhopUrl(orderPayload);
-      } else {
-        // Append customer prefill info
-        try {
-          const u = new URL(targetUrl);
-          if (email.trim()) u.searchParams.set('email', email.trim());
-          if (fullName.trim()) u.searchParams.set('name', fullName.trim());
-          if (phone.trim()) u.searchParams.set('phone', phone.trim());
-          if (street.trim()) u.searchParams.set('address_line_1', street.trim());
-          if (city.trim()) u.searchParams.set('city', city.trim());
-          if (stateProvince.trim()) u.searchParams.set('state', stateProvince.trim());
-          if (postalCode.trim()) u.searchParams.set('postal_code', postalCode.trim());
-          if (country.trim()) u.searchParams.set('country', country.toUpperCase());
-          u.searchParams.set('redirect_url', `${window.location.origin}/checkout?status=success`);
-          targetUrl = u.toString();
-        } catch (_) {}
-      }
-
+      // Use the original Whop plan checkout link directly (no dynamic plan creation)
+      const targetUrl = buildPrefilledWhopUrl(orderPayload);
       window.location.href = targetUrl;
     } catch (err) {
       // Fallback
@@ -592,7 +545,7 @@ export const Checkout = () => {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
+                      placeholder="e.g. client@example.com"
                       className="w-full px-4 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 transition-colors"
                     />
                     {errors.email && <p className="text-[10px] text-rose-600 mt-1">{errors.email}</p>}
@@ -606,7 +559,7 @@ export const Checkout = () => {
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+1 (555) 012-3456"
+                      placeholder="e.g. +1 (555) 234-5678"
                       className="w-full px-4 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 transition-colors"
                     />
                   </div>
@@ -645,7 +598,7 @@ export const Checkout = () => {
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Recipient full name"
+                      placeholder="e.g. Eleanor Vance"
                       className="w-full px-4 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 transition-colors"
                     />
                     {errors.fullName && <p className="text-[10px] text-rose-600 mt-1">{errors.fullName}</p>}
@@ -660,7 +613,7 @@ export const Checkout = () => {
                       required
                       value={street}
                       onChange={(e) => setStreet(e.target.value)}
-                      placeholder="Street address, apartment, suite, etc."
+                      placeholder="e.g. 742 Evergreen Terrace, Apt 4B"
                       className="w-full px-4 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 transition-colors"
                     />
                     {errors.street && <p className="text-[10px] text-rose-600 mt-1">{errors.street}</p>}
@@ -676,7 +629,7 @@ export const Checkout = () => {
                         required
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
-                        placeholder="City"
+                        placeholder="e.g. New York"
                         className="w-full px-3.5 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 transition-colors"
                       />
                       {errors.city && <p className="text-[10px] text-rose-600 mt-1">{errors.city}</p>}
@@ -690,7 +643,21 @@ export const Checkout = () => {
                         type="text"
                         value={stateProvince}
                         onChange={(e) => setStateProvince(e.target.value)}
-                        placeholder="State"
+                        placeholder="e.g. NY"
+                        className="w-full px-3.5 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 transition-colors"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold uppercase tracking-wider text-stone-600 mb-1">
+                        Postal Code *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value)}
+                        placeholder="e.g. 10001"
                         className="w-full px-3.5 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 transition-colors"
                       />
                     </div>

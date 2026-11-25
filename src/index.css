@@ -98,3 +98,40 @@
 .card-3d-shadow {
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 30px rgba(218, 165, 32, 0.15);
 }
+
+/* Smooth auto-moving marquee carousel */
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 35s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Smooth 3D card hover lift across the site */
+.hover-3d-card {
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hover-3d-card:hover {
+  transform: translateY(-8px) scale(1.015);
+  box-shadow: 0 24px 42px -14px rgba(28, 25, 23, 0.16), 0 8px 18px -6px rgba(218, 165, 32, 0.12);
+}

@@ -1,40 +1,40 @@
 {
   "shippingCost": 1,
   "shippingRules": {
-    "baseRate": 1.0,
-    "additionalItemRate": 1.0,
-    "tier2": 2.0,
-    "tier3": 3.0,
-    "tier4Plus": 4.0
+    "baseRate": 1,
+    "additionalItemRate": 1,
+    "tier1": 1,
+    "tier2": 2,
+    "tier3": 3,
+    "tier4": 4,
+    "tier5": 5,
+    "tier6": 6,
+    "tier7": 7,
+    "tier8": 8,
+    "tier9": 9,
+    "tier10": 10,
+    "tierBeyond10": 1,
+    "tier4Plus": 4
   },
-  "adminPassword": "",
-  "adminAuthRequired": false,
   "collections": [
     {
-      "id": "col-jewelry",
-      "name": "Fine Jewelry",
-      "slug": "jewelry",
-      "description": "Curated body chains, necklaces, and delicate luxury accents"
+      "id": "col-mwwd3t58",
+      "name": "watch",
+      "slug": "watch",
+      "description": "",
+      "image": ""
     },
     {
-      "id": "col-accessories",
-      "name": "Designer Accessories",
-      "slug": "accessories",
-      "description": "Atelier tech cases, daily essentials, and modern accents"
-    },
-    {
-      "id": "col-watches",
-      "name": "Horology & Watches",
-      "slug": "watches",
-      "description": "Precision luxury timepieces and bespoke straps"
-    },
-    {
-      "id": "col-wigs",
-      "name": "Virgin Hair & Wigs",
+      "id": "col-mwwec6y0",
+      "name": "wigs",
       "slug": "wigs",
-      "description": "Handcrafted virgin human hair and couture styling"
+      "description": "",
+      "image": ""
     }
   ],
+  "adminPassword": "",
+  "adminMasterKey": "",
+  "adminAuthRequired": false,
   "coupons": [
     {
       "code": "ALI100",
@@ -47,100 +47,184 @@
   "orders": [],
   "products": [
     {
-      "id": "1511934773898924032",
-      "name": "Jewelry Summer Body Jewelry New Jewelry",
+      "id": "1385123518139731968",
+      "name": "Front Lace Chemical Fiber Long Curly Hair European And American Wig Headgear",
       "price": 25,
       "compareAtPrice": 35,
-      "collectionSlug": "jewelry",
       "images": [
-        "https://cf.cjdropshipping.com/085b6806-7536-40d3-9937-0e559c2966a7.jpg",
-        "https://cf.cjdropshipping.com/42d64c97-7481-4dd2-bda1-532e911b847f.jpg",
-        "https://cf.cjdropshipping.com/b97171e2-eff3-46c7-8a03-28d82fac24c5.jpg",
-        "https://cf.cjdropshipping.com/9e6dd143-0dd0-46ff-8dc5-edcbe1ca6ff0.jpg",
-        "https://cf.cjdropshipping.com/204d7424-cdee-4b6e-b61d-b08547553e18.jpg",
-        "https://cf.cjdropshipping.com/3ae08810-77c6-4339-b27b-205dae1f5402.jpg",
-        "https://cf.cjdropshipping.com/0d60f449-31c1-49c3-b467-0cd832df5f48.jpg",
-        "https://cf.cjdropshipping.com/ee70220c-83c8-450c-b00f-6cb0602868a1.jpg"
+        "https://oss-cf.cjdropshipping.com/product/2026/09/26/06/85b6d6e6-ea52-4bc7-b042-148e37558984.jpg",
+        "https://cf.cjdropshipping.com/1619073767243.jpg",
+        "https://cf.cjdropshipping.com/1619073767234.jpg",
+        "https://cf.cjdropshipping.com/1619073767529.jpg",
+        "https://cf.cjdropshipping.com/1619073767235.jpg",
+        "https://cf.cjdropshipping.com/1619073767528.jpg",
+        "https://oss-cf.cjdropshipping.com/product/2024/05/24/06/a95edd58-13a1-4f00-aa30-e13be4f62ce3.jpg",
+        "https://cf.cjdropshipping.com/1619073767245.jpg",
+        "https://cf.cjdropshipping.com/1619073767244.jpg",
+        "https://cf.cjdropshipping.com/1619073767242.jpg"
       ],
-      "description": "Style: European & American Haute Couture. Material: Fine electroplated alloy with shimmering accents. Detailed craftsmanship with 70-100cm adjustable fit. An alluring body adornment designed for refined evening elegance and resort occasions.",
-      "category": "Jewelry & Fine Accessories",
-      "sku": "CJST1457986",
-      "stock": 100,
+      "description": "<p><b>Product Information:</b><br/>Applicable people: General<br/>Treatment process: mechanism<br/>Whether it can be dyed or hot: Do not dye it<br/>Hair material: Cassia/Kani Karen<br/>Applicable skin color: Any skin color<br/>Applicable face shape:Any face shape<br/>Bang type: Can be slanted<br/>Style: Exotic<br/>Efficacy: Party<br/>Wig hairstyle: Harsh and fluffy<br/>Cosmetic features: Fashion<br/><b>Products Include:</b><br/></p><p>Wig*1</p><p><img src=\"https://cf.cjdropshipping.com/17165088/2405240630150327800.jpg\" style=\"max-width:100%;\"/><img src=\"https://cf.cjdropshipping.com/17165088/2405240630150328400.jpg\" style=\"max-width: 100%;\"/><img src=\"https://cf.cjdropshipping.com/17165088/2405240630150329000.jpg\" style=\"max-width: 100%;\"/><img src=\"https://cf.cjdropshipping.com/17165088/2405240630150329800.jpg\" style=\"max-width: 100%;\"/><img src=\"https://cf.cjdropshipping.com/17165088/2405240630160321000.jpg\" style=\"max-width: 100%;\"/><img src=\"https://cf.cjdropshipping.com/17165088/2405240630160321700.jpg\" style=\"max-width: 100%;\"/><img src=\"https://cf.cjdropshipping.com/17165088/2405240630160322600.jpg\" style=\"max-width: 100%;\"/><img src=\"https://cf.cjdropshipping.com/17165088/2405240630160323300.jpg\" style=\"max-width: 100%;\"/><br/></p>",
+      "category": "Health & Beauty， Hair > Wigs & Extensions > Synthetic Hair Pieces",
+      "sku": "CJHC1093177",
+      "stock": 0,
       "rating": 4.8,
-      "reviewsCount": 82,
+      "reviewsCount": 49,
       "variants": [
         {
-          "vid": "1511934773953449984",
-          "name": "Jewelry Summer Body Jewelry New Jewelry",
-          "sku": "CJST1457986-Colour mixture",
+          "vid": "1386513250585284608",
+          "name": "Front Lace Chemical Fiber Long Curly Hair European And American Wig Headgear Black rose net",
+          "sku": "CJHC109317701AZ",
           "price": 25,
-          "stock": 100
+          "stock": 0
+        },
+        {
+          "vid": "1793892246509592576",
+          "name": "Front Lace Chemical Fiber Long Curly Hair European And American Wig Headgear Set",
+          "sku": "CJHC109317702BY",
+          "price": 25,
+          "stock": 0
+        },
+        {
+          "vid": "2609260619571613200",
+          "name": "Front Lace Chemical Fiber Long Curly Hair European And American Wig Headgear 200Black13x6 16inch",
+          "sku": "CJHC109317703CX",
+          "price": 25,
+          "stock": 0
         }
       ],
-      "listedAt": "2026-11-23T07:29:30.762Z"
+      "listedAt": "2026-11-25T17:28:03.539Z",
+      "collectionSlug": "wigs"
     },
     {
-      "id": "2512030725171637900",
-      "name": "Headphone Case X Headphone Shell",
+      "id": "5551F9CE-34C6-4694-A4BD-B0EA91DFECBE",
+      "name": "Long roll wig air bangs wig wig COS wig dyed wig",
       "price": 25,
       "compareAtPrice": 35,
-      "collectionSlug": "accessories",
       "images": [
-        "https://cf.cjdropshipping.com/quick/product/b3df360d-7ece-4a52-a18f-b02bbc47ef73.jpg",
-        "https://cf.cjdropshipping.com/quick/product/2f40491f-c42e-46f4-b8a8-d226e1da2b3f.jpg",
-        "https://cf.cjdropshipping.com/quick/product/0ecba55f-9a0a-4481-b60f-81c46c3bb0ee.jpg",
-        "https://cf.cjdropshipping.com/quick/product/3153319c-eeb4-42fb-81d7-da8e48fe2d3d.jpg",
-        "https://cf.cjdropshipping.com/quick/product/ea4a330f-e76a-4b60-8533-0aaa6dbe65c8.jpg",
-        "https://cf.cjdropshipping.com/quick/product/bc14d792-d04e-4693-b8dd-93fb1d17bee2.jpg",
-        "https://cf.cjdropshipping.com/quick/product/9183ba28-842b-4674-bc67-9cc276c45760.jpg",
-        "https://cf.cjdropshipping.com/quick/product/8ed58dfb-9d57-4079-a418-eb36b4cb9a52.jpg",
-        "https://cf.cjdropshipping.com/quick/product/22339271-df1c-4397-bad3-60d86f6519f8.jpg",
-        "https://cf.cjdropshipping.com/quick/product/4e106c82-0e24-4f10-88a7-3fbd908d9818.jpg"
+        "https://cf.cjdropshipping.com/15479136/2298345684738.jpg",
+        "https://cf.cjdropshipping.com/20190120/13013821246216.png",
+        "https://cf.cjdropshipping.com/20190120/1183545361023.png",
+        "https://cf.cjdropshipping.com/15479136/257939139282.jpg",
+        "https://cf.cjdropshipping.com/20190120/1623260064627.png",
+        "https://cf.cjdropshipping.com/15479136/2192811802092.jpg",
+        "https://cf.cjdropshipping.com/20190120/782261192374.png"
       ],
-      "description": "Precision-engineered TPU protective casing tailored for AirPods Max. Provides scratch-resistant shield, shock absorption, and a clean minimalist aesthetic.",
-      "category": "Designer Tech Accessories",
-      "sku": "CJYD2629956",
-      "stock": 50,
+      "description": "<p>size：68 cm long</p>",
+      "category": "Health & Beauty, Hair / Wigs & Extensions / Synthetic Wigs",
+      "sku": "CJBJJFHC00030",
+      "stock": 0,
       "rating": 4.8,
-      "reviewsCount": 72,
+      "reviewsCount": 36,
       "variants": [
         {
-          "vid": "2512030725171638200",
-          "name": "Black Finish (AirPods Max 1st/2nd Gen)",
-          "sku": "CJYD262995601AZ",
+          "vid": "F07D326C-245F-4691-B576-A7530DA42859",
+          "name": "Long roll wig air bangs wig wig COS wig dyed wig black",
+          "sku": "CJBJJFHC00030-black",
           "price": 25,
-          "stock": 10
-        },
-        {
-          "vid": "2512030725171638300",
-          "name": "Light Gray Finish (AirPods Max 1st/2nd Gen)",
-          "sku": "CJYD262995602BY",
-          "price": 25,
-          "stock": 10
-        },
-        {
-          "vid": "2512030725171638500",
-          "name": "Transparent Silver White (AirPods Max 1st/2nd Gen)",
-          "sku": "CJYD262995603CX",
-          "price": 25,
-          "stock": 10
-        },
-        {
-          "vid": "2512030725171638700",
-          "name": "Translucent Starlight (AirPods Max 1st/2nd Gen)",
-          "sku": "CJYD262995604DW",
-          "price": 25,
-          "stock": 10
-        },
-        {
-          "vid": "2512030725181630200",
-          "name": "Midnight Blue (AirPods Max 1st/2nd Gen)",
-          "sku": "CJYD262995613MN",
-          "price": 25,
-          "stock": 10
+          "stock": 0
         }
       ],
-      "listedAt": "2026-11-23T07:33:37.190Z"
+      "listedAt": "2026-11-25T17:28:05.648Z"
+    },
+    {
+      "id": "7AB2D073-1FD4-4420-9AE0-FD00600780D7",
+      "name": "Bobo wig wig",
+      "price": 25,
+      "compareAtPrice": 35,
+      "images": [
+        "https://cf.cjdropshipping.com/f6a8da03-0699-4309-9882-72bdb1a9a9e3.jpg",
+        "https://cf.cjdropshipping.com/20200617/1335391616543.jpg",
+        "https://cf.cjdropshipping.com/46b4d940-da81-4de7-a6b9-62a50973fcf5.jpg",
+        "https://cf.cjdropshipping.com/20200617/2864360898398.jpg",
+        "https://cf.cjdropshipping.com/2e193648-a89f-41b4-a5cb-9531dc9d065b.jpg",
+        "https://cf.cjdropshipping.com/20200617/3132355875848.jpg",
+        "https://cf.cjdropshipping.com/20200617/4924886548479.jpg",
+        "https://cf.cjdropshipping.com/20200617/2622139135815.jpg",
+        "https://cf.cjdropshipping.com/95c318f6-ac69-4d15-98bc-75148da274b7.jpg",
+        "https://cf.cjdropshipping.com/20200617/2434123127104.jpg",
+        "https://cf.cjdropshipping.com/20200617/6548374341248.jpg",
+        "https://cf.cjdropshipping.com/15922368/62484601841550.jpg",
+        "https://cf.cjdropshipping.com/20200617/6407327406844.jpg",
+        "https://cf.cjdropshipping.com/d059b72a-a31a-4e3c-9d40-8666d6a59797.jpg",
+        "https://cf.cjdropshipping.com/6f012205-949e-4b4f-b1b4-d04381dfb9df.jpg"
+      ],
+      "description": "<p>Material: Matte high temperature wire<br>Process: Button net three-piece net<br>Length: about 40cm<img src=\"https://cf.cjdropshipping.com/ae91714b-c260-4821-b444-64da029af5ec.jpg\" style=\"max-width:100%;\"><img src=\"https://cf.cjdropshipping.com/e073e5b9-05c6-46c0-9be7-e5794e512753.jpg\" style=\"max-width:100%;\"><img src=\"https://cf.cjdropshipping.com/c7aae83a-6538-402d-aebb-5cead842bdbc.jpg\" style=\"max-width:100%;\"><img src=\"https://cf.cjdropshipping.com/81c7655d-983c-4283-85bf-68a7854a624a.jpg\" style=\"max-width:100%;\"><img src=\"https://cf.cjdropshipping.com/c7420a38-08c7-498a-b3bf-cbfb3e53d11f.jpg\" style=\"max-width:100%;\"><img src=\"https://cf.cjdropshipping.com/f20aa00d-6656-416d-a8ea-c4d4477d328d.jpg\" style=\"max-width:100%;\"><img src=\"https://cf.cjdropshipping.com/7fcea1c5-5c27-49b1-9fad-a1bc154eae88.jpg\" style=\"max-width:100%;\"><img src=\"https://cf.cjdropshipping.com/da6eb0e6-dae3-4369-91de-c13caf535774.jpg\" style=\"max-width:100%;\"><br>Packing: size 28cm*17cm*5cm moisture-proof paper finalist card into transparent ziplock bag<br>Size: One size fits 52-58cm head circumference; adjustable elasticity<br>Features: Using high-quality high-temperature hair, realistic and natural! Can be 120-180 degrees high temperature resistant.</p>",
+      "category": "Health & Beauty, Hair / Synthetic Hair / Cosplay Wigs",
+      "sku": "CJBJHXCO00138",
+      "stock": 0,
+      "rating": 4.8,
+      "reviewsCount": 26,
+      "variants": [
+        {
+          "vid": "12693988-BA10-4D21-BAFE-3016F1CB6953",
+          "name": "Bobo wig wig Light Brown",
+          "sku": "CJBJHXCO00138-Light Brown",
+          "price": 25,
+          "stock": 0
+        },
+        {
+          "vid": "1450692115905515520",
+          "name": "Bobo wig wig Black set",
+          "sku": "CJBJHXCO00138-Black set",
+          "price": 25,
+          "stock": 0
+        },
+        {
+          "vid": "1450692115905515521",
+          "name": "Bobo wig wig Brown set",
+          "sku": "CJBJHXCO00138-Brown set",
+          "price": 25,
+          "stock": 0
+        },
+        {
+          "vid": "1450692115909709824",
+          "name": "Bobo wig wig Light Brown set",
+          "sku": "CJBJHXCO00138-Light Brown set",
+          "price": 25,
+          "stock": 0
+        },
+        {
+          "vid": "1453646325957660672",
+          "name": "Bobo wig wig SetA",
+          "sku": "CJBJHXCO00138-SetA",
+          "price": 25,
+          "stock": 0
+        },
+        {
+          "vid": "1453646325961854976",
+          "name": "Bobo wig wig SetB",
+          "sku": "CJBJHXCO00138-SetB",
+          "price": 25,
+          "stock": 0
+        },
+        {
+          "vid": "1453646325966049280",
+          "name": "Bobo wig wig SetAC",
+          "sku": "CJBJHXCO00138-SetAC",
+          "price": 25,
+          "stock": 0
+        },
+        {
+          "vid": "806BE551-8FF3-46A6-B596-070FA24197C3",
+          "name": "Bobo wig wig Black",
+          "sku": "CJBJHXCO00138-Black",
+          "price": 25,
+          "stock": 0
+        },
+        {
+          "vid": "B6D98FD0-3947-48CE-A476-787502115349",
+          "name": "Bobo wig wig Brown",
+          "sku": "CJBJHXCO00138-Brown",
+          "price": 25,
+          "stock": 0
+        }
+      ],
+      "listedAt": "2026-11-25T17:28:12.155Z",
+      "collectionSlug": "watch"
     }
-  ]
+  ],
+  "contactEmail": "concierge@auraatelier.com",
+  "contactPhone": "+1 (800) AURA-LUX",
+  "contactHours": "Mon–Fri, 9am–6pm EST",
+  "inquiries": []
 }

@@ -62,10 +62,14 @@ function loadStoreState() {
         shippingCost: typeof parsed.shippingCost === 'number' ? parsed.shippingCost : 1.0,
         shippingRules: parsed.shippingRules ? { ...defaultRules, ...parsed.shippingRules } : defaultRules,
         collections: Array.isArray(parsed.collections) ? parsed.collections : [
-          { id: 'col-jewelry', name: 'Fine Jewelry', slug: 'jewelry', description: 'Curated body chains, necklaces, and delicate luxury accents' },
-          { id: 'col-accessories', name: 'Designer Accessories', slug: 'accessories', description: 'Atelier tech cases, daily essentials, and modern accents' },
-          { id: 'col-watches', name: 'Horology & Watches', slug: 'watches', description: 'Precision luxury timepieces and bespoke straps' },
-          { id: 'col-wigs', name: 'Virgin Hair & Wigs', slug: 'wigs', description: 'Handcrafted virgin human hair and couture styling' },
+          { id: 'col-human-hair-wigs', name: 'Human Hair Wigs', slug: 'human-hair-wigs', description: 'Raw Human Hair & HD Lace Wigs — 100% unprocessed, glueless wear & go.', image: 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80' },
+          { id: 'col-curly-wigs', name: 'Curly Wigs', slug: 'curly-wigs', description: 'Couture Curly & Deep Wave Wigs — bouncy curls, invisible HD lace.', image: 'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=800&q=80' },
+          { id: 'col-dresses', name: 'Dresses', slug: 'dresses', description: 'Atelier Dresses & Evening Couture — from casual chic to full glamour.', image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&w=800&q=80' },
+          { id: 'col-bags', name: 'Bags', slug: 'bags', description: 'Designer Handbags & Leather Goods — structured luxury for every occasion.', image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80' },
+          { id: 'col-winter-wear', name: 'Winter Wear', slug: 'winter-wear', description: 'Winter Cashmere & Luxury Coats — warmth wrapped in couture.', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=800&q=80' },
+          { id: 'col-jewelry', name: 'Jewelry', slug: 'jewelry', description: 'Fine Jewelry, Chains & Diamonds — pure gold accents and radiant pendants.', image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80' },
+          { id: 'col-gym-wear', name: 'Gym Wear', slug: 'gym-wear', description: 'Atelier Active & Luxury Gym Wear — performance meets premium fabric.', image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80' },
+          { id: 'col-watches', name: 'Watches', slug: 'watches', description: 'Horology & Precision Watches — timeless movements, sapphire crystal.', image: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=800&q=80' },
         ],
         adminPassword: parsed.adminPassword || '',
         adminMasterKey: parsed.adminMasterKey || '',
@@ -101,10 +105,14 @@ function loadStoreState() {
       tierBeyond10: 1.0,
     },
     collections: [
-      { id: 'col-wigs', name: 'Virgin Hair & Wigs', slug: 'wigs', description: 'Handcrafted virgin human hair, HD lace, and couture styling' },
-      { id: 'col-jewelry', name: 'Fine Jewelry', slug: 'jewelry', description: 'Curated body chains, necklaces, and delicate luxury accents' },
-      { id: 'col-accessories', name: 'Designer Accessories', slug: 'accessories', description: 'Atelier tech cases, daily essentials, and modern accents' },
-      { id: 'col-watches', name: 'Horology & Watches', slug: 'watches', description: 'Precision luxury timepieces and bespoke straps' },
+      { id: 'col-human-hair-wigs', name: 'Human Hair Wigs', slug: 'human-hair-wigs', description: 'Raw Human Hair & HD Lace Wigs — 100% unprocessed, glueless wear & go.', image: 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80' },
+      { id: 'col-curly-wigs', name: 'Curly Wigs', slug: 'curly-wigs', description: 'Couture Curly & Deep Wave Wigs — bouncy curls, invisible HD lace.', image: 'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=800&q=80' },
+      { id: 'col-dresses', name: 'Dresses', slug: 'dresses', description: 'Atelier Dresses & Evening Couture — from casual chic to full glamour.', image: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&w=800&q=80' },
+      { id: 'col-bags', name: 'Bags', slug: 'bags', description: 'Designer Handbags & Leather Goods — structured luxury for every occasion.', image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80' },
+      { id: 'col-winter-wear', name: 'Winter Wear', slug: 'winter-wear', description: 'Winter Cashmere & Luxury Coats — warmth wrapped in couture.', image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=800&q=80' },
+      { id: 'col-jewelry', name: 'Jewelry', slug: 'jewelry', description: 'Fine Jewelry, Chains & Diamonds — pure gold accents and radiant pendants.', image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80' },
+      { id: 'col-gym-wear', name: 'Gym Wear', slug: 'gym-wear', description: 'Atelier Active & Luxury Gym Wear — performance meets premium fabric.', image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80' },
+      { id: 'col-watches', name: 'Watches', slug: 'watches', description: 'Horology & Precision Watches — timeless movements, sapphire crystal.', image: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=800&q=80' },
     ],
     adminPassword: '',
     adminMasterKey: '',
@@ -379,6 +387,7 @@ export function apiDevServerPlugin() {
             const name = String(body.name || '').trim();
             const slug = String(body.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-')).trim();
             const desc = String(body.description || '').trim();
+            const image = String(body.image || '').trim();
 
             if (!name || !slug) {
               return sendJson(res, 400, { success: false, error: 'Collection name and slug are required.' });
@@ -390,6 +399,7 @@ export function apiDevServerPlugin() {
               name,
               slug,
               description: desc,
+              ...(image !== '' || body.image !== undefined ? { image } : {}),
             };
 
             if (existingIdx !== -1) {

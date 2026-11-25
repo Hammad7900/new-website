@@ -26,6 +26,7 @@ export const AdminCollections = () => {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
+  const [image, setImage] = useState('');
   const [showModal, setShowModal] = useState(false);
 
   const loadData = async () => {
@@ -60,6 +61,7 @@ export const AdminCollections = () => {
     setName('');
     setSlug('');
     setDescription('');
+    setImage('');
     setShowModal(true);
   };
 
@@ -68,7 +70,37 @@ export const AdminCollections = () => {
     setName(col.name);
     setSlug(col.slug);
     setDescription(col.description || '');
+    setImage(col.image || '');
     setShowModal(true);
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 700;
+        let w = img.width;
+        let h = img.height;
+        if (w > h && w > MAX_SIZE) {
+          h = (h * MAX_SIZE) / w;
+          w = MAX_SIZE;
+        } else if (h > MAX_SIZE) {
+          w = (w * MAX_SIZE) / h;
+          h = MAX_SIZE;
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        setImage(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSave = async (e) => {
@@ -85,6 +117,7 @@ export const AdminCollections = () => {
         name: name.trim(),
         slug: slug.trim().toLowerCase(),
         description: description.trim(),
+        image: image.trim(),
       });
       setCollections(res.collections || []);
       setFeedback({
@@ -202,8 +235,14 @@ export const AdminCollections = () => {
                     return (
                       <tr key={col.id} className="hover:bg-stone-50/60 transition-colors">
                         <td className="py-4 px-6 font-semibold text-stone-900">
-                          <div className="flex items-center space-x-2.5">
-                            <span className="w-2 h-2 rounded-full bg-stone-800"></span>
+                          <div className="flex items-center space-x-3">
+                            {col.image ? (
+                              <img src={col.image} alt={col.name} className="w-10 h-10 rounded-xl object-cover border border-stone-200 shrink-0" />
+                            ) : (
+                              <span className="w-10 h-10 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400 shrink-0">
+                                <Layers className="w-4 h-4" />
+                              </span>
+                            )}
                             <span className="text-sm">{col.name}</span>
                           </div>
                         </td>
@@ -299,6 +338,35 @@ export const AdminCollections = () => {
                   <p className="text-[10px] text-stone-400 mt-1">
                     Used in navigation links and API queries. Lowercase letters, numbers, and hyphens only.
                   </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-stone-700 mb-1.5">
+                    Collection Photo (URL or Upload)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    {image && (
+                      <img src={image} alt="Preview" className="w-12 h-12 rounded-xl object-cover border border-stone-200 shrink-0" />
+                    )}
+                    <input
+                      type="text"
+                      value={image}
+                      onChange={(e) => setImage(e.target.value)}
+                      placeholder="https://... image link or upload below"
+                      className="flex-1 px-4 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900"
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <label className="cursor-pointer inline-flex items-center px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-[11px] font-semibold rounded-lg transition-colors">
+                      <span>Upload Photo from Device</span>
+                      <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                    </label>
+                    {image && (
+                      <button type="button" onClick={() => setImage('')} className="text-[11px] text-rose-600 hover:underline">
+                        Remove photo
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div>

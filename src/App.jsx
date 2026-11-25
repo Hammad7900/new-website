@@ -11,6 +11,7 @@ import { Cart } from './pages/store/Cart';
 import { Checkout } from './pages/store/Checkout';
 import { Contact } from './pages/store/Contact';
 import { PrivacyPolicy } from './pages/store/PrivacyPolicy';
+import { CollectionPage } from './pages/store/CollectionPage';
 
 // Admin Portal Pages & Protection
 import { AdminLogin } from './pages/admin/AdminLogin';
@@ -42,6 +43,7 @@ export const App = () => {
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/collection/:slug" element={<CollectionPage />} />
 
           {/* Admin routes are protected by the server-configured password. */}
           <Route path="/admin/login" element={<AdminLogin />} />
