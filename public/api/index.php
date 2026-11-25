@@ -414,6 +414,10 @@ if (str_ends_with($uri, '/store-products') || $endpoint === 'store-products') {
         if ($product['name'] === '' || count($product['variants']) === 0) sendJson(422, ['success' => false, 'error' => 'CJ did not return a product name and orderable variants.']);
         $state['products'] = array_values(array_filter($state['products'], function($saved) use ($productId) { return (string)($saved['id'] ?? '') !== $productId; }));
         $product['listedAt'] = gmdate('c');
+        $collectionSlug = trim((string)($body['collectionSlug'] ?? ''));
+        if ($collectionSlug !== '') {
+            $product['collectionSlug'] = $collectionSlug;
+        }
         $state = saveStoreState(['products' => array_merge($state['products'], [$product])]);
         sendJson(200, ['success' => true, 'product' => $product]);
     }

@@ -520,6 +520,9 @@ export function apiDevServerPlugin() {
 
               const product = mapCjProductDetail(detailData.data, productId, price);
               product.listedAt = new Date().toISOString();
+              if (body.collectionSlug) {
+                product.collectionSlug = String(body.collectionSlug).trim();
+              }
 
               state.products = state.products.filter((p) => String(p.id) !== productId);
               state.products.push(product);

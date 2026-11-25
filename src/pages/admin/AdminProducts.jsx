@@ -118,9 +118,10 @@ export const AdminProducts = () => {
       return;
     }
     const chosenCollection = newProductCollections[product.id] || '';
+    const colName = collections.find((c) => c.slug === chosenCollection)?.name;
     setSavingIds((ids) => [...ids, product.id]);
     try {
-      const result = await listCJProduct(product.id, price);
+      const result = await listCJProduct(product.id, price, chosenCollection);
       let updatedProduct = result.product || { ...product, price };
       
       // If a collection was selected during listing, assign it immediately
@@ -135,7 +136,11 @@ export const AdminProducts = () => {
         ...current.filter((item) => item.id !== product.id),
         updatedProduct,
       ]);
-      showToast('success', `"${product.name}" is now listed on your storefront at $${price.toFixed(2)}.`);
+      if (chosenCollection) {
+        showToast('success', `"${product.name}" added to collection: ${colName || chosenCollection}! (Shows inside this collection)`);
+      } else {
+        showToast('success', `"${product.name}" listed on Storefront (Home)! (Shows on home highlights)`);
+      }
     } catch (error) {
       showToast('error', error.message || 'Could not list this product.');
     } finally {
@@ -248,7 +253,7 @@ export const AdminProducts = () => {
             }`}
           >
             <ShoppingBag className="w-4 h-4" />
-            <span>Storefront Products</span>
+            <span>Store Products & Collections</span>
             <span
               className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                 activeTab === 'listed' ? 'bg-amber-400 text-stone-950' : 'bg-stone-200 text-stone-700'
@@ -427,20 +432,29 @@ export const AdminProducts = () => {
                           </td>
 
                           <td className="py-4 px-4 whitespace-nowrap">
-                            <div className="flex items-center space-x-2">
-                              <Tag className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                              <select
-                                value={prod.collectionSlug || ''}
-                                onChange={(e) => handleAssignCollection(prod.id, e.target.value)}
-                                className="px-3 py-1.5 rounded-xl border border-stone-200 text-xs bg-white text-stone-800 focus:outline-none focus:border-stone-900 cursor-pointer shadow-2xs font-medium"
-                              >
-                                <option value="">-- Unassigned --</option>
-                                {collections.map((col) => (
-                                  <option key={col.slug} value={col.slug}>
-                                    {col.name}
-                                  </option>
-                                ))}
-                              </select>
+                            <div className="flex flex-col space-y-1">
+                              <div className="flex items-center space-x-2">
+                                <Tag className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                                <select
+                                  value={prod.collectionSlug || ''}
+                                  onChange={(e) => handleAssignCollection(prod.id, e.target.value)}
+                                  className="px-3 py-1.5 rounded-xl border border-stone-200 text-xs bg-white text-stone-800 focus:outline-none focus:border-stone-900 cursor-pointer shadow-2xs font-medium"
+                                >
+                                  <option value="">-- Unassigned (Home Storefront) --</option>
+                                  {collections.map((col) => (
+                                    <option key={col.slug} value={col.slug}>
+                                      {col.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <span className="text-[10px] pl-5">
+                                {prod.collectionSlug ? (
+                                  <span className="text-stone-500 font-medium">📁 Shows in Collection Page only</span>
+                                ) : (
+                                  <span className="text-amber-700 font-semibold">🏠 Shows on Home Page Marquee</span>
+                                )}
+                              </span>
                             </div>
                           </td>
 
@@ -669,7 +683,7 @@ export const AdminProducts = () => {
                                 }}
                                 className="px-2.5 py-1.5 rounded-lg border border-stone-200 text-xs bg-white text-stone-800 focus:outline-none focus:border-stone-900 font-medium"
                               >
-                                <option value="">-- Choose Collection --</option>
+                                <option value="">-- Storefront (No Collection) --</option>
                                 {collections.map((col) => (
                                   <option key={col.slug} value={col.slug}>
                                     {col.name}
@@ -728,17 +742,31 @@ export const AdminProducts = () => {
                                     Unlist
                                   </button>
                                 </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  disabled={isSaving}
-                                  onClick={() => handleListProduct(prod)}
-                                  className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold uppercase tracking-wider transition-colors shadow-xs disabled:opacity-50"
-                                >
-                                  <PlusCircle className="w-3.5 h-3.5" />
-                                  <span>{isSaving ? 'Listing...' : 'List on Storefront'}</span>
-                                </button>
-                              )}
+                              ) : (() => {
+                                const selectedColSlug = newProductCollections[prod.id] || '';
+                                const targetCol = collections.find((c) => c.slug === selectedColSlug);
+                                return (
+                                  <button
+                                    type="button"
+                                    disabled={isSaving}
+                                    onClick={() => handleListProduct(prod)}
+                                    className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-xs disabled:opacity-50 ${
+                                      selectedColSlug
+                                        ? 'bg-stone-900 hover:bg-black text-amber-400 border border-stone-800'
+                                        : 'bg-amber-500 hover:bg-amber-600 text-stone-950'
+                                    }`}
+                                  >
+                                    <PlusCircle className="w-3.5 h-3.5" />
+                                    <span>
+                                      {isSaving
+                                        ? 'Listing...'
+                                        : selectedColSlug
+                                        ? `List in ${targetCol?.name || 'Collection'}`
+                                        : 'List on Storefront (Home)'}
+                                    </span>
+                                  </button>
+                                );
+                              })()}
                             </td>
                           </tr>
                         );

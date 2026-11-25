@@ -51,8 +51,8 @@ export const deleteCollection = (id, slug) => {
   });
 };
 
-export const listCJProduct = (id, price) => request('/api/store-products', {
-  method: 'POST', headers: adminHeaders(), body: JSON.stringify({ id, price }),
+export const listCJProduct = (id, price, collectionSlug = '') => request('/api/store-products', {
+  method: 'POST', headers: adminHeaders(), body: JSON.stringify({ id, price, collectionSlug }),
 });
 
 export const unlistStoreProduct = (id) => request(`/api/store-products?id=${encodeURIComponent(id)}`, {
