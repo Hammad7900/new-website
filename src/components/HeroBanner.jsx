@@ -65,7 +65,7 @@ export const HeroBanner = () => {
                 <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
                 <div>
                   <div className="text-[11px] font-semibold text-white uppercase tracking-wider">Protected</div>
-                  <div className="text-[10px] text-stone-400">Whop 256-bit SSL</div>
+                  <div className="text-[10px] text-stone-400">256-bit SSL</div>
                 </div>
               </div>
               <div className="flex items-center space-x-2.5">
@@ -112,7 +112,7 @@ export const HeroBanner = () => {
                 </div>
                 <div className="text-right">
                   <span className="text-stone-400 text-[10px] uppercase tracking-wider block">Payment</span>
-                  <span className="text-amber-400 font-semibold font-mono">Whop Secure</span>
+                  <span className="text-amber-400 font-semibold font-mono">Encrypted 256-Bit</span>
                 </div>
               </div>
             </div>

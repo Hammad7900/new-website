@@ -213,7 +213,7 @@ export const Checkout = () => {
     }
   };
 
-  // Single Checkout: Proceed directly to Whop payment
+  // Single Checkout: Proceed directly to dynamic Whop payment for exact amount
   const handleProceedToPayment = async (e) => {
     e.preventDefault();
     if (!validate()) {
@@ -256,7 +256,7 @@ export const Checkout = () => {
       discountAmount,
       total,
       couponCode: coupon?.coupon?.code || null,
-      paymentMethod: 'Whop 256-Bit Gateway (Verified Settlement)',
+      paymentMethod: '256-Bit Encrypted Settlement',
     };
 
     // Stash pending order in sessionStorage & localStorage
@@ -267,9 +267,47 @@ export const Checkout = () => {
       // ignore
     }
 
-    // Direct, single-checkout redirect to Whop with all details pre-filled
-    const prefilledUrl = buildPrefilledWhopUrl(orderPayload);
-    window.location.href = prefilledUrl;
+    try {
+      // Request dynamic checkout link for the EXACT total amount
+      const res = await fetch('/api/create-whop-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: total,
+          orderId: `ORD-${Date.now()}`,
+          customerEmail: email.trim(),
+          customerName: fullName.trim(),
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      let targetUrl = data.checkoutUrl;
+
+      if (!targetUrl) {
+        targetUrl = buildPrefilledWhopUrl(orderPayload);
+      } else {
+        // Append customer prefill info
+        try {
+          const u = new URL(targetUrl);
+          if (email.trim()) u.searchParams.set('email', email.trim());
+          if (fullName.trim()) u.searchParams.set('name', fullName.trim());
+          if (phone.trim()) u.searchParams.set('phone', phone.trim());
+          if (street.trim()) u.searchParams.set('address_line_1', street.trim());
+          if (city.trim()) u.searchParams.set('city', city.trim());
+          if (stateProvince.trim()) u.searchParams.set('state', stateProvince.trim());
+          if (postalCode.trim()) u.searchParams.set('postal_code', postalCode.trim());
+          if (country.trim()) u.searchParams.set('country', country.toUpperCase());
+          u.searchParams.set('redirect_url', `${window.location.origin}/checkout?status=success`);
+          targetUrl = u.toString();
+        } catch (_) {}
+      }
+
+      window.location.href = targetUrl;
+    } catch (err) {
+      // Fallback
+      const fallbackUrl = buildPrefilledWhopUrl(orderPayload);
+      window.location.href = fallbackUrl;
+    }
   };
 
   // Empty cart screen
@@ -530,7 +568,7 @@ export const Checkout = () => {
               {/* Security Seal */}
               <div className="mt-6 pt-5 border-t border-stone-100 flex items-center justify-center space-x-2 text-[11px] text-stone-500 font-medium">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Guaranteed safe & secure checkout powered by Whop</span>
+                <span>Guaranteed safe & secure encrypted checkout</span>
               </div>
             </div>
           </div>
@@ -695,7 +733,7 @@ export const Checkout = () => {
                     <span>Bank-Grade 256-Bit Encrypted Settlement</span>
                   </div>
                   <p className="text-[11px] text-stone-500 leading-relaxed">
-                    Card details and digital wallets are securely verified by Whop's PCI-DSS Level 1 engine. You enter your payment details only once on Whop and return immediately upon confirmation.
+                    Card details and digital wallets are securely verified by our PCI-DSS Level 1 bank-grade engine. You enter your payment details only once and return immediately upon confirmation.
                   </p>
                 </div>
               </div>
@@ -732,8 +770,8 @@ export const Checkout = () => {
                   By purchasing, you agree to {BRAND.name} terms of service and client privacy terms.
                 </p>
                 <div className="flex items-center justify-center space-x-1.5 text-[11px] text-stone-500 font-medium">
-                  <span>Powered by</span>
-                  <span className="font-bold text-stone-800 tracking-wide">⚡ Whop</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="font-semibold text-stone-700 tracking-wide">256-Bit SSL Bank-Grade Protected</span>
                 </div>
               </div>
             </form>

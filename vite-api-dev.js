@@ -713,6 +713,93 @@ export function apiDevServerPlugin() {
           }
         }
 
+        // 7b. /api/create-whop-checkout (Dynamic Live Checkout for exact order amount)
+        if (pathname === '/api/create-whop-checkout' && req.method === 'POST') {
+          const body = await readBody(req);
+          const amount = Number(body.amount) || 0.0;
+          const whopApiKey = 'apik_J6aTnjsiggCFX_C8592368_C_58defc2d1f80a9c074d06c70a72fc4f60922cad7677484572e601ca96bef97';
+          const accountId = 'biz_0DSMZeYhX5GeRy';
+          const productId = 'prod_8lUVRU6hM1Bdo';
+
+          if (amount <= 0) {
+            return sendJson(res, 400, { success: false, error: 'Positive amount required.' });
+          }
+
+          try {
+            const https = await import('https');
+            const planPayload = JSON.stringify({
+              account_id: accountId,
+              product_id: productId,
+              initial_price: Math.round(amount * 100) / 100,
+              currency: 'usd',
+              billing_type: 'one_time',
+              release_method: 'buy_now',
+              visibility: 'hidden',
+              internal_notes: `Store Order ${body.orderId || ''}`,
+              metadata: {
+                order_id: body.orderId || '',
+                customer_email: body.customerEmail || '',
+                customer_name: body.customerName || '',
+              },
+            });
+
+            const whopReq = https.request('https://api.whop.com/api/v1/plans', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${whopApiKey}`,
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(planPayload),
+              },
+            }, (whopRes) => {
+              let resData = '';
+              whopRes.on('data', chunk => resData += chunk);
+              whopRes.on('end', () => {
+                try {
+                  const parsed = JSON.parse(resData);
+                  if (parsed && parsed.purchase_url) {
+                    return sendJson(res, 200, {
+                      success: true,
+                      checkoutUrl: parsed.purchase_url,
+                      planId: parsed.id,
+                      amount,
+                    });
+                  }
+                  return sendJson(res, 200, {
+                    success: true,
+                    checkoutUrl: 'https://whop.com/checkout/plan_Nw9OfcyHAA0zJ',
+                    amount,
+                    warning: 'Default plan fallback',
+                  });
+                } catch (_) {
+                  return sendJson(res, 200, {
+                    success: true,
+                    checkoutUrl: 'https://whop.com/checkout/plan_Nw9OfcyHAA0zJ',
+                    amount,
+                  });
+                }
+              });
+            });
+
+            whopReq.on('error', () => {
+              return sendJson(res, 200, {
+                success: true,
+                checkoutUrl: 'https://whop.com/checkout/plan_Nw9OfcyHAA0zJ',
+                amount,
+              });
+            });
+
+            whopReq.write(planPayload);
+            whopReq.end();
+            return;
+          } catch (e) {
+            return sendJson(res, 200, {
+              success: true,
+              checkoutUrl: 'https://whop.com/checkout/plan_Nw9OfcyHAA0zJ',
+              amount,
+            });
+          }
+        }
+
         // 8. /api/cj-order
         if (pathname === '/api/cj-order' && req.method === 'POST') {
           const token = await getCJAccessToken();

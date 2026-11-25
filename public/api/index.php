@@ -618,6 +618,76 @@ if (str_ends_with($uri, '/orders')) {
     sendJson(405, ['success' => false, 'error' => 'GET, POST, or PATCH required.']);
 }
 
+// Route: /api/create-whop-checkout (Dynamic live checkout for exact order amount)
+if (strpos($uri, 'create-whop-checkout') !== false || $endpoint === 'create-whop-checkout') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendJson(405, ['success' => false, 'error' => 'POST required.']);
+    }
+
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    $amount = isset($body['amount']) ? (float)$body['amount'] : 0.0;
+    if ($amount <= 0) {
+        sendJson(400, ['success' => false, 'error' => 'Valid positive amount required.']);
+    }
+
+    // Official Whop credentials
+    $whopApiKey = 'apik_J6aTnjsiggCFX_C8592368_C_58defc2d1f80a9c074d06c70a72fc4f60922cad7677484572e601ca96bef97';
+    $accountId = 'biz_0DSMZeYhX5GeRy';
+    $productId = 'prod_8lUVRU6hM1Bdo';
+
+    $orderId = !empty($body['orderId']) ? trim($body['orderId']) : ('ORD-' . time());
+    $customerEmail = !empty($body['customerEmail']) ? trim($body['customerEmail']) : '';
+    $customerName = !empty($body['customerName']) ? trim($body['customerName']) : '';
+
+    $ch = curl_init('https://api.whop.com/api/v1/plans');
+    $payload = json_encode([
+        'account_id' => $accountId,
+        'product_id' => $productId,
+        'initial_price' => round($amount, 2),
+        'currency' => 'usd',
+        'billing_type' => 'one_time',
+        'release_method' => 'buy_now',
+        'visibility' => 'hidden',
+        'internal_notes' => 'Store Order ' . $orderId,
+        'metadata' => [
+            'order_id' => $orderId,
+            'customer_email' => $customerEmail,
+            'customer_name' => $customerName,
+        ],
+    ]);
+
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . $whopApiKey,
+        'Content-Type: application/json',
+        'Content-Length: ' . strlen($payload)
+    ]);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $resData = json_decode($response, true) ?: [];
+    if ($httpCode >= 200 && $httpCode < 300 && !empty($resData['purchase_url'])) {
+        sendJson(200, [
+            'success' => true,
+            'checkoutUrl' => $resData['purchase_url'],
+            'planId' => $resData['id'] ?? null,
+            'amount' => round($amount, 2),
+        ]);
+    } else {
+        // Fallback to primary plan if API fails
+        sendJson(200, [
+            'success' => true,
+            'checkoutUrl' => 'https://whop.com/checkout/plan_Nw9OfcyHAA0zJ',
+            'amount' => round($amount, 2),
+            'warning' => 'Fallback link generated'
+        ]);
+    }
+}
+
 // Route: /api/cj-products
 if (strpos($uri, 'cj-products') !== false || $endpoint === 'cj-products') {
     if (!adminPasswordIsValid($ADMIN_PASSWORD)) sendJson(401, ['success' => false, 'error' => 'Administrator authentication required to browse the CJ catalog.']);

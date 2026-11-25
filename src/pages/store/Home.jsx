@@ -50,7 +50,7 @@ const REVIEWS = [
     stars: 5,
     item: 'Chronograph Timepiece',
     quote:
-      'The finish and weight of the watch exceeded all expectations. Fast insured delivery to London and the Whop checkout was completely frictionless.',
+      'The finish and weight of the watch exceeded all expectations. Fast insured delivery to London and the checkout was completely frictionless.',
   },
   {
     name: 'Claire Dupont',
@@ -401,7 +401,7 @@ export const Home = () => {
                 </div>
                 <div>
                   <h4 className="font-semibold text-white uppercase tracking-wider">Secure Settlement</h4>
-                  <p className="text-stone-400 mt-1">Encrypted 256-bit payment authorization powered by Whop.</p>
+                  <p className="text-stone-400 mt-1">Encrypted 256-bit payment authorization with instant confirmation.</p>
                 </div>
               </div>
             </div>
