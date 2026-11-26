@@ -17,60 +17,93 @@ import {
   X,
 } from 'lucide-react';
 
-// Smart fallback images matched by collection name/slug when admin hasn't uploaded a custom photo
-export function getCollectionImage(col) {
+const HAIR_FALLBACK_POOL = [
+  '/images/collections/human-hair.jpg',
+  '/images/collections/straight-hair.jpg',
+  '/images/collections/curly-hair.jpg',
+  '/images/collections/hair-bundles.jpg',
+  '/images/collections/short-hair.jpg',
+];
+
+// Smart collection image matcher:
+// 1. Custom uploaded collection image
+// 2. Product image inside this collection (inspired by its own products, avoiding duplicates)
+// 3. Dedicated luxury studio hair/fashion photo matched to collection name/slug (never repeating)
+export function getCollectionImage(col, products = [], idx = 0, usedImages = null) {
   if (col?.image && col.image.trim() !== '') return col.image;
   if (col?.bannerImage && col.bannerImage.trim() !== '') return col.bannerImage;
 
+  const pickUnique = (url) => {
+    if (!usedImages) return url;
+    if (!usedImages.has(url)) {
+      usedImages.add(url);
+      return url;
+    }
+    const alt = HAIR_FALLBACK_POOL.find((u) => !usedImages.has(u));
+    if (alt) {
+      usedImages.add(alt);
+      return alt;
+    }
+    return url;
+  };
+
+  // Match from products inside this collection so the card reflects its actual products
+  if (Array.isArray(products) && products.length > 0) {
+    const cSlug = (col?.slug || '').trim().toLowerCase();
+    const cId = (col?.id || '').trim().toLowerCase();
+    const cName = (col?.name || '').trim().toLowerCase();
+    const matchingProds = products.filter((p) => {
+      const pCol = (p.collectionSlug || '').trim().toLowerCase();
+      if (!pCol) return false;
+      return (pCol === cSlug || pCol === cId || pCol === cName) && Array.isArray(p.images) && p.images[0];
+    });
+    const unusedProd = matchingProds.find((p) => !usedImages || !usedImages.has(p.images[0]));
+    if (unusedProd) {
+      if (usedImages) usedImages.add(unusedProd.images[0]);
+      return unusedProd.images[0];
+    }
+    if (matchingProds[0]) {
+      return matchingProds[0].images[0];
+    }
+  }
+
   const key = `${col?.slug || ''} ${col?.name || ''}`.toLowerCase();
 
-  // Specific hair types first (more specific before generic)
+  // Specific hair types — each mapped to its own distinct luxury studio photo
   if (key.includes('straight')) {
-    return 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80';
+    return pickUnique('/images/collections/straight-hair.jpg');
   }
   if (key.includes('curly') || key.includes('curl') || key.includes('wave') || key.includes('wavy')) {
-    return 'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=800&q=80';
-  }
-  if (key.includes('frontal') || key.includes('closure') || key.includes('hd lace') || key.includes('13x')) {
-    return 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80';
+    return pickUnique('/images/collections/curly-hair.jpg');
   }
   if (key.includes('bundle') || key.includes('extension') || key.includes('weave') || key.includes('weft')) {
-    return 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?auto=format&fit=crop&w=800&q=80';
+    return pickUnique('/images/collections/hair-bundles.jpg');
   }
-  if (key.includes('bobo') || key.includes('bob') || key.includes('short')) {
-    return 'https://images.unsplash.com/photo-1620065579834-57a8f7f3ccbb?auto=format&fit=crop&w=800&q=80';
+  if (key.includes('bobo') || key.includes('bob') || key.includes('short') || key.includes('shot') || key.includes('pixie')) {
+    return pickUnique('/images/collections/short-hair.jpg');
   }
-  if (key.includes('long') || key.includes('bang') || key.includes('fringe')) {
-    return 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?auto=format&fit=crop&w=800&q=80';
-  }
-  if (key.includes('cosplay') || key.includes('synthetic') || key.includes('color') || key.includes('colored') || key.includes('ombre')) {
-    return 'https://images.unsplash.com/photo-1565060169194-19fabf63012f?auto=format&fit=crop&w=800&q=80';
-  }
-  if (key.includes('human hair') || key.includes('virgin') || key.includes('raw hair') || key.includes('remy')) {
-    return 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80';
-  }
-  if (key.includes('wig') || key.includes('hair') || key.includes('lace')) {
-    return 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80';
+  if (key.includes('frontal') || key.includes('closure') || key.includes('hd lace') || key.includes('13x') || key.includes('lace') || key.includes('human') || key.includes('virgin') || key.includes('raw') || key.includes('remy') || key.includes('long') || key.includes('bang')) {
+    return pickUnique('/images/collections/human-hair.jpg');
   }
   if (key.includes('jewel') || key.includes('ring') || key.includes('chain') || key.includes('neck') || key.includes('diamond')) {
-    return 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80';
+    return pickUnique('https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80');
   }
   if (key.includes('watch') || key.includes('horology') || key.includes('time')) {
-    return 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=800&q=80';
+    return pickUnique('https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=800&q=80');
   }
   if (key.includes('dress') || key.includes('couture') || key.includes('gown')) {
-    return 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&w=800&q=80';
+    return pickUnique('https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&w=800&q=80');
   }
   if (key.includes('leather') || key.includes('bag') || key.includes('handbag') || key.includes('tote') || key.includes('accessor')) {
-    return 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80';
+    return pickUnique('https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80');
   }
   if (key.includes('winter') || key.includes('coat') || key.includes('jacket') || key.includes('cashmere')) {
-    return 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=800&q=80';
+    return pickUnique('https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=800&q=80');
   }
   if (key.includes('gym') || key.includes('active') || key.includes('fitness') || key.includes('sport')) {
-    return 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80';
+    return pickUnique('https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80');
   }
-  return 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80';
+  return pickUnique(HAIR_FALLBACK_POOL[idx % HAIR_FALLBACK_POOL.length]);
 }
 
 const DEFAULT_COLLECTIONS = [
@@ -350,8 +383,10 @@ export const Home = () => {
 
         {/* Dynamic Grid showing every collection with its matched or uploaded photo */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {displayCollections.map((col, idx) => {
-            const img = getCollectionImage(col);
+          {(() => {
+            const usedImages = new Set();
+            return displayCollections.map((col, idx) => {
+              const img = getCollectionImage(col, allListedProducts, idx, usedImages);
             const desc = col.description || 'Curated luxury pieces selected for our atelier catalog.';
             const count = collectionCounts[col.slug?.toLowerCase()] ?? 0;
             const isSelected = activeCategory.toLowerCase() === (col.slug || '').toLowerCase();
@@ -395,7 +430,8 @@ export const Home = () => {
                 </div>
               </div>
             );
-          })}
+            });
+          })()}
         </div>
       </section>
 

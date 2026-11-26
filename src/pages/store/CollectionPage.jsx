@@ -94,7 +94,7 @@ export const CollectionPage = () => {
     );
   }
 
-  const heroImage = collection.image || getCollectionImage(collection);
+  const heroImage = collection.image || getCollectionImage(collection, products);
 
   return (
     <div className="min-h-screen bg-[#faf8f5]">
@@ -187,7 +187,7 @@ export const CollectionPage = () => {
                   className="flex items-center gap-2 px-4 py-2 border border-stone-200 rounded-full text-sm text-stone-700 hover:border-stone-800 hover:text-stone-900 hover:bg-stone-50 transition-all"
                 >
                   <img
-                    src={col.image || getCollectionImage(col)}
+                    src={col.image || getCollectionImage(col, allProducts)}
                     alt={col.name}
                     className="w-5 h-5 rounded-full object-cover"
                   />
