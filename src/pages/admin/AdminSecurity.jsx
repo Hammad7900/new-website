@@ -1,7 +1,7 @@
 // src/pages/admin/AdminSecurity.jsx
 import React, { useState, useEffect } from 'react';
 import { AdminLayout } from '../../components/admin/AdminLayout';
-import { getAdminSecurityStatus, updateAdminSecurity } from '../../services/api';
+import { getAdminSecurityStatus, updateAdminSecurity, fetchStoreSettings, saveStoreSettings } from '../../services/api';
 import {
   Shield,
   KeyRound,
@@ -13,6 +13,9 @@ import {
   EyeOff,
   ShieldCheck,
   Key,
+  Wrench,
+  ToggleLeft,
+  ToggleRight,
 } from 'lucide-react';
 
 export const AdminSecurity = () => {
@@ -22,6 +25,12 @@ export const AdminSecurity = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
+
+  // Maintenance Mode state
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenancePassword, setMaintenancePassword] = useState('');
+  const [maintenanceSaving, setMaintenanceSaving] = useState(false);
+  const [maintenanceFeedback, setMaintenanceFeedback] = useState(null);
 
   // Set Initial Security Form
   const [newPassword, setNewPassword] = useState('');
@@ -54,9 +63,61 @@ export const AdminSecurity = () => {
     }
   };
 
+  const loadMaintenanceSettings = async () => {
+    try {
+      const { fetchStoreSettings: fss } = await import('../../services/api');
+      const s = await fss();
+      setMaintenanceMode(Boolean(s.maintenanceMode));
+      setMaintenancePassword(s.maintenancePassword || '');
+    } catch (err) {
+      console.error('Failed to load maintenance settings:', err);
+    }
+  };
+
   useEffect(() => {
     loadStatus();
+    loadMaintenanceSettings();
   }, []);
+
+  const handleToggleMaintenance = async () => {
+    setMaintenanceSaving(true);
+    setMaintenanceFeedback(null);
+    try {
+      const { saveStoreSettings: sss } = await import('../../services/api');
+      const newMode = !maintenanceMode;
+      const pwd = sessionStorage.getItem('aura_admin_password') || '';
+      await sss({ maintenanceMode: newMode, maintenancePassword }, pwd);
+      setMaintenanceMode(newMode);
+      setMaintenanceFeedback({
+        type: 'success',
+        text: newMode
+          ? 'Store is now in Maintenance Mode. Visitors see the "Coming Soon" page.'
+          : 'Store is now LIVE. Maintenance mode disabled.',
+      });
+      setTimeout(() => setMaintenanceFeedback(null), 5000);
+    } catch (err) {
+      setMaintenanceFeedback({ type: 'error', text: err.message || 'Failed to toggle maintenance mode.' });
+    } finally {
+      setMaintenanceSaving(false);
+    }
+  };
+
+  const handleSaveMaintenancePassword = async (e) => {
+    e.preventDefault();
+    setMaintenanceSaving(true);
+    setMaintenanceFeedback(null);
+    try {
+      const { saveStoreSettings: sss } = await import('../../services/api');
+      const pwd = sessionStorage.getItem('aura_admin_password') || '';
+      await sss({ maintenancePassword, maintenanceMode }, pwd);
+      setMaintenanceFeedback({ type: 'success', text: 'Preview password saved successfully.' });
+      setTimeout(() => setMaintenanceFeedback(null), 4000);
+    } catch (err) {
+      setMaintenanceFeedback({ type: 'error', text: err.message || 'Failed to save preview password.' });
+    } finally {
+      setMaintenanceSaving(false);
+    }
+  };
 
   const handleCreatePassword = async (e) => {
     e.preventDefault();
@@ -497,6 +558,87 @@ export const AdminSecurity = () => {
               {authRequired ? 'Switch to Direct Access Mode' : 'Enable Required Password Check'}
             </button>
           )}
+        </div>
+
+        {/* ── MAINTENANCE MODE CARD ── */}
+        <div className="bg-white p-6 sm:p-7 rounded-3xl border border-stone-200/80 shadow-xs">
+          <div className="flex items-center space-x-2 text-xs font-semibold text-stone-900 uppercase tracking-wider mb-2">
+            <Wrench className="w-4 h-4 text-amber-500" />
+            <span>Maintenance Mode</span>
+          </div>
+          <p className="text-xs text-stone-500 mb-5 leading-relaxed max-w-xl">
+            When enabled, all store visitors see a <strong>"We'll Be Back Soon"</strong> page. Only people with the preview password (or admin password) can access the live store. Admin panel is always accessible.
+          </p>
+
+          {maintenanceFeedback && (
+            <div
+              className={`p-3 rounded-xl flex items-center space-x-2 text-xs mb-4 ${
+                maintenanceFeedback.type === 'success'
+                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                  : 'bg-rose-50 border border-rose-200 text-rose-800'
+              }`}
+            >
+              {maintenanceFeedback.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 shrink-0" />
+              )}
+              <span>{maintenanceFeedback.text}</span>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
+            <div className="flex items-center space-x-3">
+              <button
+                type="button"
+                onClick={handleToggleMaintenance}
+                disabled={maintenanceSaving}
+                className="cursor-pointer disabled:opacity-50"
+                title={maintenanceMode ? 'Click to disable maintenance mode' : 'Click to enable maintenance mode'}
+              >
+                {maintenanceMode ? (
+                  <ToggleRight className="w-10 h-10 text-amber-500" />
+                ) : (
+                  <ToggleLeft className="w-10 h-10 text-stone-400" />
+                )}
+              </button>
+              <div>
+                <p className={`text-sm font-semibold ${maintenanceMode ? 'text-amber-700' : 'text-stone-500'}`}>
+                  {maintenanceMode ? '🔧 Maintenance Mode: ON' : 'Maintenance Mode: OFF'}
+                </p>
+                <p className="text-[11px] text-stone-400">
+                  {maintenanceMode ? 'Visitors see the Coming Soon page' : 'Store is live and accessible'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Preview Password */}
+          <form onSubmit={handleSaveMaintenancePassword} className="border-t border-stone-100 pt-5">
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-stone-700 mb-1 flex items-center space-x-1">
+              <Key className="w-3.5 h-3.5 text-amber-500" />
+              <span>Preview Password (Optional)</span>
+            </label>
+            <p className="text-[10px] text-stone-400 mb-2">
+              Visitors who know this password can bypass the maintenance page and preview the live store.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={maintenancePassword}
+                onChange={(e) => setMaintenancePassword(e.target.value)}
+                placeholder="e.g. preview2026"
+                className="flex-1 px-4 py-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900 font-mono"
+              />
+              <button
+                type="submit"
+                disabled={maintenanceSaving}
+                className="px-4 py-2.5 bg-stone-900 hover:bg-black text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Save
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </AdminLayout>

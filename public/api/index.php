@@ -454,6 +454,8 @@ if (str_ends_with($uri, '/store-settings') || $endpoint === 'store-settings') {
             ],
             'adminAuthRequired' => !empty($state['adminAuthRequired']),
             'hasPassword' => !empty($state['adminPassword']),
+            'maintenanceMode' => !empty($state['maintenanceMode']),
+            'maintenancePassword' => $state['maintenancePassword'] ?? '',
             'contactEmail' => $state['contactEmail'] ?? 'concierge@auraatelier.com',
             'contactPhone' => $state['contactPhone'] ?? '+1 (800) AURA-LUX',
             'contactHours' => $state['contactHours'] ?? 'Mon–Fri, 9am–6pm EST',
@@ -503,6 +505,12 @@ if (str_ends_with($uri, '/store-settings') || $endpoint === 'store-settings') {
     if (isset($body['contactHours'])) {
         $changes['contactHours'] = trim((string)$body['contactHours']);
     }
+    if (isset($body['maintenanceMode'])) {
+        $changes['maintenanceMode'] = (bool)$body['maintenanceMode'];
+    }
+    if (isset($body['maintenancePassword'])) {
+        $changes['maintenancePassword'] = trim((string)$body['maintenancePassword']);
+    }
 
     try {
         $saved = saveStoreState($changes);
@@ -511,6 +519,7 @@ if (str_ends_with($uri, '/store-settings') || $endpoint === 'store-settings') {
             'shippingCost' => (float)$saved['shippingCost'],
             'shippingRules' => $saved['shippingRules'],
             'adminAuthRequired' => (bool)$saved['adminAuthRequired'],
+            'maintenanceMode' => !empty($saved['maintenanceMode']),
             'contactEmail' => $saved['contactEmail'] ?? 'concierge@auraatelier.com',
             'contactPhone' => $saved['contactPhone'] ?? '+1 (800) AURA-LUX',
             'contactHours' => $saved['contactHours'] ?? 'Mon–Fri, 9am–6pm EST',

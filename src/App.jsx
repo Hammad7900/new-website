@@ -1,5 +1,5 @@
 // src/App.jsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -12,6 +12,7 @@ import { Checkout } from './pages/store/Checkout';
 import { Contact } from './pages/store/Contact';
 import { PrivacyPolicy } from './pages/store/PrivacyPolicy';
 import { CollectionPage } from './pages/store/CollectionPage';
+import { MaintenancePage } from './pages/store/MaintenancePage';
 
 // Admin Portal Pages & Protection
 import { AdminLogin } from './pages/admin/AdminLogin';
@@ -24,6 +25,37 @@ import { AdminCoupons } from './pages/admin/AdminCoupons';
 import { AdminSecurity } from './pages/admin/AdminSecurity';
 import { AdminInquiries } from './pages/admin/AdminInquiries';
 import { AdminRoute } from './context/AdminAuthContext';
+import { fetchStoreSettings } from './services/api';
+
+// Maintenance Guard — wraps all store routes
+const MaintenanceGuard = ({ children }) => {
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [unlocked, setUnlocked] = useState(
+    () => sessionStorage.getItem('aura_maintenance_unlocked') === 'true'
+  );
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    fetchStoreSettings()
+      .then((s) => {
+        setMaintenanceMode(Boolean(s.maintenanceMode));
+        setChecked(true);
+      })
+      .catch(() => setChecked(true));
+  }, []);
+
+  if (!checked) return null; // Wait for settings load
+
+  if (maintenanceMode && !unlocked) {
+    return (
+      <MaintenancePage
+        onUnlock={() => setUnlocked(true)}
+      />
+    );
+  }
+
+  return children;
+};
 
 export const App = () => {
   const location = useLocation();
@@ -36,16 +68,16 @@ export const App = () => {
 
       <main className="flex-1">
         <Routes>
-          {/* Customer Facing Routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/product/:id" element={<ProductPage />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/collection/:slug" element={<CollectionPage />} />
+          {/* Customer Facing Routes — all wrapped in MaintenanceGuard */}
+          <Route path="/" element={<MaintenanceGuard><Home /></MaintenanceGuard>} />
+          <Route path="/product/:id" element={<MaintenanceGuard><ProductPage /></MaintenanceGuard>} />
+          <Route path="/cart" element={<MaintenanceGuard><Cart /></MaintenanceGuard>} />
+          <Route path="/checkout" element={<MaintenanceGuard><Checkout /></MaintenanceGuard>} />
+          <Route path="/contact" element={<MaintenanceGuard><Contact /></MaintenanceGuard>} />
+          <Route path="/privacy-policy" element={<MaintenanceGuard><PrivacyPolicy /></MaintenanceGuard>} />
+          <Route path="/collection/:slug" element={<MaintenanceGuard><CollectionPage /></MaintenanceGuard>} />
 
-          {/* Admin routes are protected by the server-configured password. */}
+          {/* Admin routes are NOT behind MaintenanceGuard */}
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route
             path="/admin"
@@ -113,7 +145,7 @@ export const App = () => {
           />
 
           {/* Catch-all redirect to Home */}
-          <Route path="*" element={<Home />} />
+          <Route path="*" element={<MaintenanceGuard><Home /></MaintenanceGuard>} />
         </Routes>
       </main>
 

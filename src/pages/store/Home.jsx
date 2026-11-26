@@ -23,8 +23,31 @@ export function getCollectionImage(col) {
   if (col?.bannerImage && col.bannerImage.trim() !== '') return col.bannerImage;
 
   const key = `${col?.slug || ''} ${col?.name || ''}`.toLowerCase();
-  if (key.includes('curly')) {
+
+  // Specific hair types first (more specific before generic)
+  if (key.includes('straight')) {
+    return 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80';
+  }
+  if (key.includes('curly') || key.includes('curl') || key.includes('wave') || key.includes('wavy')) {
     return 'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=800&q=80';
+  }
+  if (key.includes('frontal') || key.includes('closure') || key.includes('hd lace') || key.includes('13x')) {
+    return 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80';
+  }
+  if (key.includes('bundle') || key.includes('extension') || key.includes('weave') || key.includes('weft')) {
+    return 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?auto=format&fit=crop&w=800&q=80';
+  }
+  if (key.includes('bobo') || key.includes('bob') || key.includes('short')) {
+    return 'https://images.unsplash.com/photo-1620065579834-57a8f7f3ccbb?auto=format&fit=crop&w=800&q=80';
+  }
+  if (key.includes('long') || key.includes('bang') || key.includes('fringe')) {
+    return 'https://images.unsplash.com/photo-1522337660859-02fbefca4702?auto=format&fit=crop&w=800&q=80';
+  }
+  if (key.includes('cosplay') || key.includes('synthetic') || key.includes('color') || key.includes('colored') || key.includes('ombre')) {
+    return 'https://images.unsplash.com/photo-1565060169194-19fabf63012f?auto=format&fit=crop&w=800&q=80';
+  }
+  if (key.includes('human hair') || key.includes('virgin') || key.includes('raw hair') || key.includes('remy')) {
+    return 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80';
   }
   if (key.includes('wig') || key.includes('hair') || key.includes('lace')) {
     return 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80';
@@ -47,7 +70,7 @@ export function getCollectionImage(col) {
   if (key.includes('gym') || key.includes('active') || key.includes('fitness') || key.includes('sport')) {
     return 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80';
   }
-  return 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80';
+  return 'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=800&q=80';
 }
 
 const DEFAULT_COLLECTIONS = [

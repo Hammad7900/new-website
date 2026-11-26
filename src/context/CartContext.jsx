@@ -22,9 +22,18 @@ export const CartProvider = ({ children }) => {
   const [shippingRules, setShippingRules] = useState({
     baseRate: 1.0,
     additionalItemRate: 1.0,
+    tier1: 1.0,
     tier2: 2.0,
     tier3: 3.0,
+    tier4: 4.0,
     tier4Plus: 4.0,
+    tier5: 5.0,
+    tier6: 6.0,
+    tier7: 7.0,
+    tier8: 8.0,
+    tier9: 9.0,
+    tier10: 10.0,
+    tierBeyond10: 1.0,
   });
 
   useEffect(() => {
@@ -33,12 +42,24 @@ export const CartProvider = ({ children }) => {
         const amount = Number(settings.shippingCost);
         if (Number.isFinite(amount) && amount >= 0) setShipping(amount);
         if (settings.shippingRules && typeof settings.shippingRules === 'object') {
+          const r = settings.shippingRules;
+          const base = Number(r.tier1 ?? r.baseRate) || 1.0;
+          const add = Number(r.tierBeyond10 ?? r.additionalItemRate) || 1.0;
           setShippingRules({
-            baseRate: Number(settings.shippingRules.baseRate) || 1.0,
-            additionalItemRate: Number(settings.shippingRules.additionalItemRate) || 1.0,
-            tier2: Number(settings.shippingRules.tier2) || 2.0,
-            tier3: Number(settings.shippingRules.tier3) || 3.0,
-            tier4Plus: Number(settings.shippingRules.tier4Plus) || 4.0,
+            baseRate: base,
+            additionalItemRate: add,
+            tier1: Number(r.tier1) || base,
+            tier2: Number(r.tier2) || (base + add),
+            tier3: Number(r.tier3) || (base + add * 2),
+            tier4: Number(r.tier4 ?? r.tier4Plus) || (base + add * 3),
+            tier4Plus: Number(r.tier4 ?? r.tier4Plus) || (base + add * 3),
+            tier5: Number(r.tier5) || (base + add * 4),
+            tier6: Number(r.tier6) || (base + add * 5),
+            tier7: Number(r.tier7) || (base + add * 6),
+            tier8: Number(r.tier8) || (base + add * 7),
+            tier9: Number(r.tier9) || (base + add * 8),
+            tier10: Number(r.tier10) || (base + add * 9),
+            tierBeyond10: add,
           });
         }
       })

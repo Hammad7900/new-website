@@ -80,6 +80,8 @@ function loadStoreState() {
         contactEmail: parsed.contactEmail || 'concierge@auraatelier.com',
         contactPhone: parsed.contactPhone || '+1 (800) AURA-LUX',
         contactHours: parsed.contactHours || 'Mon–Fri, 9am–6pm EST',
+        maintenanceMode: parsed.maintenanceMode === true,
+        maintenancePassword: parsed.maintenancePassword || '',
         inquiries: Array.isArray(parsed.inquiries) ? parsed.inquiries : [],
       };
     }
@@ -117,6 +119,8 @@ function loadStoreState() {
     adminPassword: '',
     adminMasterKey: '',
     adminAuthRequired: false,
+    maintenanceMode: false,
+    maintenancePassword: '',
     coupons: [
       { code: 'SAVE10', type: 'percentage', value: 10, expiry: '2027-12-31', createdAt: new Date().toISOString() },
       { code: 'WELCOME20', type: 'fixed', value: 20, expiry: '2027-12-31', createdAt: new Date().toISOString() },
@@ -316,6 +320,8 @@ export function apiDevServerPlugin() {
               shippingRules: state.shippingRules,
               adminAuthRequired: state.adminAuthRequired,
               hasPassword: Boolean(state.adminPassword),
+              maintenanceMode: Boolean(state.maintenanceMode),
+              maintenancePassword: state.maintenancePassword || '',
               contactEmail: state.contactEmail || 'concierge@auraatelier.com',
               contactPhone: state.contactPhone || '+1 (800) AURA-LUX',
               contactHours: state.contactHours || 'Mon–Fri, 9am–6pm EST',
@@ -362,12 +368,19 @@ export function apiDevServerPlugin() {
             if (body.contactHours !== undefined) {
               state.contactHours = String(body.contactHours || '').trim();
             }
+            if (body.maintenanceMode !== undefined) {
+              state.maintenanceMode = Boolean(body.maintenanceMode);
+            }
+            if (body.maintenancePassword !== undefined) {
+              state.maintenancePassword = String(body.maintenancePassword || '').trim();
+            }
             saveStoreState(state);
             return sendJson(res, 200, {
               success: true,
               shippingCost: state.shippingCost,
               shippingRules: state.shippingRules,
               adminAuthRequired: state.adminAuthRequired,
+              maintenanceMode: Boolean(state.maintenanceMode),
               contactEmail: state.contactEmail || 'concierge@auraatelier.com',
               contactPhone: state.contactPhone || '+1 (800) AURA-LUX',
               contactHours: state.contactHours || 'Mon–Fri, 9am–6pm EST',
