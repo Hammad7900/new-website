@@ -133,8 +133,8 @@ export const Checkout = () => {
   };
 
   // Helper to build pre-populated Whop checkout link
-  const buildPrefilledWhopUrl = (order) => {
-    const base = WHOP.checkoutUrl || 'https://whop.com/checkout/plan_Nw9OfcyHAA0zJ';
+  const buildPrefilledWhopUrl = (order, customUrl = null) => {
+    const base = customUrl || WHOP.checkoutUrl || 'https://whop.com/checkout/plan_Nw9OfcyHAA0zJ';
     try {
       const url = new URL(base);
       const email = order.customer?.email || '';
@@ -253,8 +253,20 @@ export const Checkout = () => {
     }
 
     try {
-      // Use the original Whop plan checkout link directly (no dynamic plan creation)
-      const targetUrl = buildPrefilledWhopUrl(orderPayload);
+      // Create a dynamic Whop checkout plan for the exact order total via backend API
+      const resp = await fetch('/api/create-whop-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: total,
+          orderId: `ORD-${Date.now().toString(36).toUpperCase()}`,
+          customerEmail: email.trim(),
+          customerName: fullName.trim(),
+        }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      const dynamicUrl = data?.checkoutUrl || null;
+      const targetUrl = buildPrefilledWhopUrl(orderPayload, dynamicUrl);
       window.location.href = targetUrl;
     } catch (err) {
       // Fallback
