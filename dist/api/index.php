@@ -792,14 +792,12 @@ if (strpos($uri, 'create-whop-checkout') !== false || $endpoint === 'create-whop
             'amount' => round($amount, 2),
         ]);
     } else {
-        // Return debug info so we can see what's wrong
+        // Dynamic plan creation failed — return failure (frontend will handle)
         sendJson(200, [
             'success' => false,
-            'debug' => true,
+            'error' => 'Whop plan creation failed',
             'httpCode' => $httpCode,
-            'curlError' => $curlError,
-            'whopResponse' => $resData,
-            'rawResponse' => substr($response ?: '', 0, 300),
+            'curlError' => $curlError ?? '',
         ]);
     }
 }

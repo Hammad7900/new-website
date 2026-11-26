@@ -133,8 +133,10 @@ export const Checkout = () => {
   };
 
   // Helper to build pre-populated Whop checkout link
-  const buildPrefilledWhopUrl = (order, customUrl = null) => {
-    const base = customUrl || WHOP.checkoutUrl || 'https://whop.com/checkout/plan_Nw9OfcyHAA0zJ';
+  const buildPrefilledWhopUrl = (order, customUrl) => {
+    // customUrl MUST be provided — it's the dynamically-created plan URL
+    if (!customUrl) return null;
+    const base = customUrl;
     try {
       const url = new URL(base);
       const email = order.customer?.email || '';
@@ -252,36 +254,75 @@ export const Checkout = () => {
       // ignore
     }
 
-    try {
-      // Create a dynamic Whop checkout plan for the exact order total via backend API
-      const resp = await fetch('/api/create-whop-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: total,
-          orderId: `ORD-${Date.now().toString(36).toUpperCase()}`,
-          customerEmail: email.trim(),
-          customerName: fullName.trim(),
-        }),
-      });
-      const data = await resp.json().catch(() => ({}));
-      
-      // If backend returned debug error, alert and stop
-      if (data?.debug === true) {
-        console.error('Whop API error:', data);
-        alert(`Payment setup error (HTTP ${data.httpCode || 0}): ${data.curlError || JSON.stringify(data.whopResponse)}`);
-        setProcessing(false);
-        return;
+    // ── Create dynamic Whop plan for exact cart total ──────────────────────
+    // Strategy: Try browser-direct first (most reliable), then PHP backend.
+    // NEVER fall back to the $1 test plan — show a retry error instead.
+    const WHOP_API_KEY = 'apik_J6aTnjsiggCFX_C8592368_C_58defc2d1f80a9c074d06c70a72fc4f60922cad7677484572e601ca96bef97';
+    const WHOP_ACCOUNT_ID = 'biz_0DSMZeYhX5GeRy';
+    const WHOP_PRODUCT_ID = 'prod_8lUVRU6hM1Bdo';
+    const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+
+    // Helper: call Whop API and return purchase_url or null
+    const createWhopPlan = async (useDirectBrowser) => {
+      try {
+        if (useDirectBrowser) {
+          // Direct browser → Whop API (no PHP needed)
+          const r = await fetch('https://api.whop.com/api/v1/plans', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${WHOP_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              account_id: WHOP_ACCOUNT_ID,
+              product_id: WHOP_PRODUCT_ID,
+              initial_price: Math.round(total * 100) / 100,
+              currency: 'usd',
+              billing_type: 'one_time',
+              release_method: 'buy_now',
+              visibility: 'hidden',
+              metadata: {},
+            }),
+          });
+          if (!r.ok) return null;
+          const d = await r.json();
+          return d?.purchase_url || null;
+        } else {
+          // PHP backend → Whop API
+          const r = await fetch('/api/create-whop-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amount: total,
+              orderId,
+              customerEmail: email.trim(),
+              customerName: fullName.trim(),
+            }),
+          });
+          const d = await r.json().catch(() => ({}));
+          if (d?.success && d?.checkoutUrl && !d?.warning) return d.checkoutUrl;
+          return null;
+        }
+      } catch {
+        return null;
       }
-      
-      const dynamicUrl = data?.checkoutUrl || null;
-      const targetUrl = buildPrefilledWhopUrl(orderPayload, dynamicUrl);
-      window.location.href = targetUrl;
-    } catch (err) {
-      // Fallback
-      const fallbackUrl = buildPrefilledWhopUrl(orderPayload);
-      window.location.href = fallbackUrl;
+    };
+
+    // Try browser-direct first, then PHP fallback
+    let purchaseUrl = await createWhopPlan(true);
+    if (!purchaseUrl) {
+      purchaseUrl = await createWhopPlan(false);
     }
+
+    if (!purchaseUrl) {
+      // Both failed — show error, do NOT redirect to $1 plan
+      setIsProcessing(false);
+      setPaymentNotice('Payment gateway error. Please wait a moment and try again.');
+      return;
+    }
+
+    const targetUrl = buildPrefilledWhopUrl(orderPayload, purchaseUrl);
+    window.location.href = targetUrl;
   };
 
   // Empty cart screen
