@@ -43,22 +43,27 @@ export const CartProvider = ({ children }) => {
         if (Number.isFinite(amount) && amount >= 0) setShipping(amount);
         if (settings.shippingRules && typeof settings.shippingRules === 'object') {
           const r = settings.shippingRules;
-          const base = Number(r.tier1 ?? r.baseRate) || 1.0;
-          const add = Number(r.tierBeyond10 ?? r.additionalItemRate) || 1.0;
+          const num = (val, fallback) => {
+            if (val === undefined || val === null || val === '') return fallback;
+            const n = Number(val);
+            return Number.isFinite(n) ? n : fallback;
+          };
+          const base = num(r.tier1 ?? r.baseRate, 1.0);
+          const add = num(r.tierBeyond10 ?? r.additionalItemRate, 1.0);
           setShippingRules({
             baseRate: base,
             additionalItemRate: add,
-            tier1: Number(r.tier1) || base,
-            tier2: Number(r.tier2) || (base + add),
-            tier3: Number(r.tier3) || (base + add * 2),
-            tier4: Number(r.tier4 ?? r.tier4Plus) || (base + add * 3),
-            tier4Plus: Number(r.tier4 ?? r.tier4Plus) || (base + add * 3),
-            tier5: Number(r.tier5) || (base + add * 4),
-            tier6: Number(r.tier6) || (base + add * 5),
-            tier7: Number(r.tier7) || (base + add * 6),
-            tier8: Number(r.tier8) || (base + add * 7),
-            tier9: Number(r.tier9) || (base + add * 8),
-            tier10: Number(r.tier10) || (base + add * 9),
+            tier1: num(r.tier1, base),
+            tier2: num(r.tier2, base + add),
+            tier3: num(r.tier3, base + add * 2),
+            tier4: num(r.tier4 ?? r.tier4Plus, base + add * 3),
+            tier4Plus: num(r.tier4 ?? r.tier4Plus, base + add * 3),
+            tier5: num(r.tier5, base + add * 4),
+            tier6: num(r.tier6, base + add * 5),
+            tier7: num(r.tier7, base + add * 6),
+            tier8: num(r.tier8, base + add * 7),
+            tier9: num(r.tier9, base + add * 8),
+            tier10: num(r.tier10, base + add * 9),
             tierBeyond10: add,
           });
         }
@@ -130,7 +135,7 @@ export const CartProvider = ({ children }) => {
     const amount = Number(value);
     if (!Number.isFinite(amount) || amount < 0) throw new Error('Enter a valid shipping fee.');
     const password = sessionStorage.getItem('aura_admin_password') || '';
-    const newRules = { ...shippingRules, baseRate: amount };
+    const newRules = { ...shippingRules, baseRate: amount, tier1: amount };
     await saveStoreSettings({ shippingCost: amount, shippingRules: newRules }, password);
     setShipping(amount);
     setShippingRules(newRules);
