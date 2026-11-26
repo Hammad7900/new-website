@@ -755,12 +755,7 @@ if (strpos($uri, 'create-whop-checkout') !== false || $endpoint === 'create-whop
         'billing_type' => 'one_time',
         'release_method' => 'buy_now',
         'visibility' => 'hidden',
-        'internal_notes' => 'Store Order ' . $orderId,
-        'metadata' => [
-            'order_id' => $orderId,
-            'customer_email' => $customerEmail,
-            'customer_name' => $customerName,
-        ],
+        'metadata' => (object)[],
     ]);
 
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -769,9 +764,10 @@ if (strpos($uri, 'create-whop-checkout') !== false || $endpoint === 'create-whop
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Authorization: Bearer ' . $whopApiKey,
         'Content-Type: application/json',
-        'Content-Length: ' . strlen($payload)
+        'Content-Length: ' . mb_strlen($payload, '8bit')
     ]);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
@@ -785,12 +781,12 @@ if (strpos($uri, 'create-whop-checkout') !== false || $endpoint === 'create-whop
             'amount' => round($amount, 2),
         ]);
     } else {
-        // Fallback to primary plan if API fails
+        // Fallback to fixed plan if dynamic creation fails
         sendJson(200, [
             'success' => true,
-            'checkoutUrl' => 'https://whop.com/checkout/plan_Nw9OfcyHAA0zJ',
+            'checkoutUrl' => 'https://whop.com/checkout/plan_Nw9OfcyHAA0zJ/?d2c=true&email=' . urlencode($customerEmail) . '&name=' . urlencode($customerName),
             'amount' => round($amount, 2),
-            'warning' => 'Fallback link generated'
+            'warning' => 'Dynamic plan creation failed, used fallback'
         ]);
     }
 }
