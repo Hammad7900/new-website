@@ -265,6 +265,15 @@ export const Checkout = () => {
         }),
       });
       const data = await resp.json().catch(() => ({}));
+      
+      // If backend returned debug error, alert and stop
+      if (data?.debug === true) {
+        console.error('Whop API error:', data);
+        alert(`Payment setup error (HTTP ${data.httpCode || 0}): ${data.curlError || JSON.stringify(data.whopResponse)}`);
+        setProcessing(false);
+        return;
+      }
+      
       const dynamicUrl = data?.checkoutUrl || null;
       const targetUrl = buildPrefilledWhopUrl(orderPayload, dynamicUrl);
       window.location.href = targetUrl;

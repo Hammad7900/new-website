@@ -767,10 +767,21 @@ if (strpos($uri, 'create-whop-checkout') !== false || $endpoint === 'create-whop
         'Content-Length: ' . mb_strlen($payload, '8bit')
     ]);
     curl_setopt($ch, CURLOPT_TIMEOUT, 20);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Hostinger SSL compat
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    $curlError = '';
     $response = curl_exec($ch);
+    if ($response === false) { $curlError = curl_error($ch); }
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+
+    // Write debug log (delete after debugging)
+    $logDir = __DIR__ . '/../';
+    @file_put_contents($logDir . 'whop-debug.log',
+        date('Y-m-d H:i:s') . " HTTP={$httpCode} cURLErr={$curlError} Resp=" . substr($response ?: '', 0, 500) . "\n",
+        FILE_APPEND
+    );
 
     $resData = json_decode($response, true) ?: [];
     if ($httpCode >= 200 && $httpCode < 300 && !empty($resData['purchase_url'])) {
@@ -781,12 +792,14 @@ if (strpos($uri, 'create-whop-checkout') !== false || $endpoint === 'create-whop
             'amount' => round($amount, 2),
         ]);
     } else {
-        // Fallback to fixed plan if dynamic creation fails
+        // Return debug info so we can see what's wrong
         sendJson(200, [
-            'success' => true,
-            'checkoutUrl' => 'https://whop.com/checkout/plan_Nw9OfcyHAA0zJ/?d2c=true&email=' . urlencode($customerEmail) . '&name=' . urlencode($customerName),
-            'amount' => round($amount, 2),
-            'warning' => 'Dynamic plan creation failed, used fallback'
+            'success' => false,
+            'debug' => true,
+            'httpCode' => $httpCode,
+            'curlError' => $curlError,
+            'whopResponse' => $resData,
+            'rawResponse' => substr($response ?: '', 0, 300),
         ]);
     }
 }
