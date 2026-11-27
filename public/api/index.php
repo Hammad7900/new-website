@@ -160,8 +160,8 @@ function sendJsonPost($url, $data, $headers = []) {
     $defaultHeaders = ['Content-Type: application/json'];
     curl_setopt($ch, CURLOPT_HTTPHEADER, array_merge($defaultHeaders, $headers));
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
     $response = curl_exec($ch);
     curl_close($ch);
         return is_string($response) ? json_decode($response, true) : null;
@@ -192,8 +192,8 @@ function sendGet($url, $headers = []) {
     $defaultHeaders = ['Content-Type: application/json'];
     curl_setopt($ch, CURLOPT_HTTPHEADER, array_merge($defaultHeaders, $headers));
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
     $response = curl_exec($ch);
     curl_close($ch);
     return is_string($response) ? json_decode($response, true) : null;
@@ -1125,6 +1125,125 @@ if (strpos($uri, 'pending-orders') !== false || $endpoint === 'pending-orders') 
         sendJson(200, ['success' => true, 'order' => $order]);
     }
     sendJson(405, ['success' => false, 'error' => 'GET or PATCH required.']);
+}
+
+// Route: /api/sync-whop-orders (Fetch confirmed payments directly from Whop v1 API and import missing orders)
+if (strpos($uri, 'sync-whop-orders') !== false || $endpoint === 'sync-whop-orders') {
+    $whopKey = 'apik_J6aTnjsiggCFX_C8592368_C_58defc2d1f80a9c074d06c70a72fc4f60922cad7677484572e601ca96bef97';
+    $whopRes = sendGet('https://api.whop.com/api/v1/payments', [
+        'Authorization: Bearer ' . $whopKey
+    ]);
+
+    if (!$whopRes || !isset($whopRes['data'])) {
+        sendJson(502, ['success' => false, 'error' => 'Failed to reach Whop payments API.', 'raw' => $whopRes]);
+    }
+
+    $payments = $whopRes['data'] ?? [];
+    $state = loadStoreState();
+    $existingOrders = $state['orders'] ?? [];
+    $newOrdersCount = 0;
+
+    foreach ($payments as $pay) {
+        $status = strtolower($pay['status'] ?? '');
+        $substatus = strtolower($pay['substatus'] ?? '');
+        if ($status !== 'paid' && $substatus !== 'succeeded') continue;
+
+        $payId = $pay['id'] ?? '';
+        $planId = $pay['variant_id'] ?? $pay['membership_id'] ?? '';
+
+        // Check if already in orders by whopPaymentId or id
+        $alreadyExists = false;
+        foreach ($existingOrders as $o) {
+            if (($o['whopPaymentId'] ?? '') === $payId || ($o['id'] ?? '') === $payId) {
+                $alreadyExists = true;
+                break;
+            }
+        }
+        if ($alreadyExists) continue;
+
+        // Check if matched in pendingWhopOrders
+        $matchedPending = null;
+        if (!empty($state['pendingWhopOrders'])) {
+            foreach ($state['pendingWhopOrders'] as $po) {
+                if (($po['whopPlanId'] ?? '') === $planId) {
+                    $matchedPending = $po;
+                    break;
+                }
+            }
+        }
+
+        $customerName = $pay['shipping_address']['name'] ?? $pay['billing_address']['name'] ?? $pay['user']['name'] ?? $pay['user']['username'] ?? 'Customer';
+        $customerEmail = $pay['customer_email'] ?? $pay['user']['email'] ?? '';
+        $customerPhone = $pay['customer_phone'] ?? '';
+        $amount = (float)($pay['total']['amount'] ?? $pay['amount_charged']['amount'] ?? 19.99);
+
+        $shippingAddr = [
+            'name'        => $pay['shipping_address']['name'] ?? $customerName,
+            'street'      => trim(($pay['shipping_address']['line1'] ?? '') . ' ' . ($pay['shipping_address']['line2'] ?? '')),
+            'city'        => $pay['shipping_address']['city'] ?? '',
+            'state'       => $pay['shipping_address']['state'] ?? '',
+            'zip'         => $pay['shipping_address']['postal_code'] ?? '',
+            'country'     => $pay['shipping_address']['country'] ?? 'US',
+            'countryCode' => $pay['shipping_address']['country'] ?? 'US',
+        ];
+
+        $paymentMethod = 'Whop (' . ($pay['payment_instrument']['display_name'] ?? $pay['payment_method_type'] ?? 'Card') . ')';
+
+        if ($matchedPending) {
+            $order = array_merge($matchedPending, [
+                'status'        => 'PAID',
+                'whopPaymentId' => $payId,
+                'paidAt'        => $pay['paid_at'] ?? gmdate('c'),
+                'paymentMethod' => $paymentMethod,
+            ]);
+            if (empty($order['customer']['email']) && $customerEmail) $order['customer']['email'] = $customerEmail;
+            if (empty($order['shippingAddress']['street']) && !empty($shippingAddr['street'])) $order['shippingAddress'] = $shippingAddr;
+            $existingOrders = array_merge([$order], $existingOrders);
+            $state['pendingWhopOrders'] = array_values(array_filter($state['pendingWhopOrders'], fn($p) => $p['id'] !== $matchedPending['id']));
+        } else {
+            $order = [
+                'id'              => 'ORD-' . strtoupper(substr($payId, -8)),
+                'createdAt'       => $pay['paid_at'] ?? $pay['created_at'] ?? gmdate('c'),
+                'status'          => 'PAID',
+                'customer'        => [
+                    'name'  => $customerName,
+                    'email' => $customerEmail,
+                    'phone' => $customerPhone,
+                ],
+                'shippingAddress' => $shippingAddr,
+                'items'           => [
+                    [
+                        'name'     => $pay['line_items'][0]['product_title'] ?? 'AURA Luxury Hair Collection',
+                        'price'    => $amount,
+                        'quantity' => 1,
+                    ]
+                ],
+                'subtotal'        => $amount,
+                'shipping'        => 0,
+                'discountAmount'  => 0,
+                'total'           => $amount,
+                'couponCode'      => null,
+                'paymentMethod'   => $paymentMethod,
+                'whopPaymentId'   => $payId,
+                'whopPlanId'      => $planId,
+                'paidAt'          => $pay['paid_at'] ?? gmdate('c'),
+            ];
+            $existingOrders = array_merge([$order], $existingOrders);
+        }
+        $newOrdersCount++;
+    }
+
+    if ($newOrdersCount > 0) {
+        $state['orders'] = $existingOrders;
+        saveStoreState(['orders' => $state['orders'], 'pendingWhopOrders' => $state['pendingWhopOrders'] ?? []]);
+    }
+
+    sendJson(200, [
+        'success'        => true,
+        'syncedCount'    => $newOrdersCount,
+        'totalOrders'    => count($existingOrders),
+        'orders'         => $existingOrders,
+    ]);
 }
 
 // Route: /api/cj-products

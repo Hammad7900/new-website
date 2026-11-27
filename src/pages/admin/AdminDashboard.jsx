@@ -52,11 +52,23 @@ export const AdminDashboard = () => {
     }
     refreshOrders().catch((error) => console.error('[Admin orders]', error));
     loadStats();
+    // Auto-sync Whop orders so Overview shows accurate revenue immediately
+    fetch('/api/sync-whop-orders')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && d.success && d.syncedCount > 0) {
+          refreshOrders();
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Compute metrics from actual orders
   const totalOrders = orders.length;
-  const totalRevenue = orders.filter((o) => o.status === 'PAID').reduce((acc, o) => acc + (o.total || 0), 0);
+  const paidStatuses = ['PAID', 'PLACED_ON_CJ', 'COMPLETED', 'FULFILLED', 'SHIPPED'];
+  const totalRevenue = orders
+    .filter((o) => paidStatuses.includes(o.status))
+    .reduce((acc, o) => acc + (Number(o.total) || 0), 0);
   const pendingOrders = orders.filter((o) => ['PAYMENT_REVIEW', 'PAID'].includes(o.status)).length;
   const lowStockProducts = products.filter((p) => (p.stock || 0) <= 35).length;
   const recentOrders = orders.slice(0, 5);

@@ -22,6 +22,31 @@ export const AdminOrders = () => {
   const [abandoned, setAbandoned]           = useState([]);
   const [activeTab, setActiveTab]           = useState('orders'); // 'orders' | 'pending' | 'abandoned'
   const [confirmingId, setConfirmingId]     = useState(null);
+  const [syncingWhop, setSyncingWhop]       = useState(false);
+
+  const handleSyncWhop = async () => {
+    setSyncingWhop(true);
+    try {
+      const res = await fetch('/api/sync-whop-orders');
+      const data = await res.json().catch(() => ({}));
+      if (data.success) {
+        await refreshOrders();
+        await fetchPending();
+        setNotification({
+          type: 'success',
+          message: data.syncedCount > 0 
+            ? `Successfully imported ${data.syncedCount} new order(s) from Whop!`
+            : `All Whop payments are synchronized (${data.totalOrders} total orders).`,
+        });
+      } else {
+        setNotification({ type: 'error', message: data.error || 'Failed to sync with Whop.' });
+      }
+    } catch (err) {
+      setNotification({ type: 'error', message: err.message });
+    } finally {
+      setSyncingWhop(false);
+    }
+  };
 
   const fetchPending = useCallback(async () => {
     try {
@@ -43,6 +68,16 @@ export const AdminOrders = () => {
     refreshOrders().catch(err => setNotification({ type: 'error', message: err.message }));
     fetchPending();
     fetchAbandoned();
+    // Auto-sync any payments from Whop in background
+    fetch('/api/sync-whop-orders')
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.success && d.syncedCount > 0) {
+          refreshOrders();
+          fetchPending();
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Manually confirm a pending order as PAID
@@ -158,20 +193,31 @@ export const AdminOrders = () => {
       )}
 
       {/* Top Tabs */}
-      <div className="flex space-x-2 mb-6">
-        {[
-          { id: 'orders', label: `Confirmed Orders (${orders.length})`, icon: PackageCheck },
-          { id: 'pending', label: `Pending Payment (${pendingOrders.length})`, icon: Clock },
-          { id: 'abandoned', label: `Abandoned Checkouts (${abandoned.length})`, icon: UserX },
-        ].map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
-              activeTab === tab.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-400'
-            }`}>
-            <tab.icon className="w-3.5 h-3.5" />
-            <span>{tab.label}</span>
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: 'orders', label: `Confirmed Orders (${orders.length})`, icon: PackageCheck },
+            { id: 'pending', label: `Pending Payment (${pendingOrders.length})`, icon: Clock },
+            { id: 'abandoned', label: `Abandoned Checkouts (${abandoned.length})`, icon: UserX },
+          ].map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
+                activeTab === tab.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-400'
+              }`}>
+              <tab.icon className="w-3.5 h-3.5" />
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={handleSyncWhop}
+          disabled={syncingWhop}
+          className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs disabled:opacity-50 self-start sm:self-auto"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${syncingWhop ? 'animate-spin' : ''}`} />
+          <span>{syncingWhop ? 'Syncing...' : 'Sync Whop Payments'}</span>
+        </button>
       </div>
 
       {/* ═══ PENDING PAYMENT ORDERS ═══ */}
@@ -301,29 +347,6 @@ export const AdminOrders = () => {
       {activeTab === 'orders' && (<>
       {/* Filter and Search Bar */}
       <div className="bg-white border border-stone-200/90 rounded-2xl p-5 mb-6 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-              : 'bg-rose-50 border-rose-200 text-rose-800'
-          }`}
-        >
-          <div className="flex items-center space-x-2">
-            {notification.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            ) : (
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-            )}
-            <span>{notification.message}</span>
-          </div>
-          <button
-            onClick={() => setNotification(null)}
-            className="text-stone-400 hover:text-stone-700 ml-4"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Filter and Search Bar */}
-      <div className="bg-white border border-stone-200/90 rounded-2xl p-5 mb-6 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Status Filters */}
         <div className="flex items-center space-x-2 w-full sm:w-auto">
           <button
@@ -427,7 +450,7 @@ export const AdminOrders = () => {
                         <div className="font-semibold text-stone-900">{order.customer?.name}</div>
                         <div className="text-[11px] text-stone-400">{order.customer?.email}</div>
                         <div className="text-[10px] text-stone-500 truncate max-w-xs">
-                          {order.customer?.city}, {order.customer?.country}
+                          {order.shippingAddress?.city || order.customer?.city}, {order.shippingAddress?.country || order.customer?.country}
                         </div>
                       </td>
 
@@ -559,9 +582,9 @@ export const AdminOrders = () => {
 
                 <div className="p-4 rounded-2xl border border-stone-200/80">
                   <h4 className="font-semibold text-stone-900 uppercase tracking-wider text-[11px] mb-2">Destination Address</h4>
-                  <p>{selectedOrder.customer?.street}</p>
-                  <p>{selectedOrder.customer?.city}, {selectedOrder.customer?.state} {selectedOrder.customer?.postalCode}</p>
-                  <p>{selectedOrder.customer?.country}</p>
+                  <p>{selectedOrder.shippingAddress?.street || selectedOrder.customer?.street}</p>
+                  <p>{selectedOrder.shippingAddress?.city || selectedOrder.customer?.city}, {selectedOrder.shippingAddress?.state || selectedOrder.customer?.state} {selectedOrder.shippingAddress?.zip || selectedOrder.customer?.postalCode}</p>
+                  <p>{selectedOrder.shippingAddress?.country || selectedOrder.customer?.country}</p>
                 </div>
               </div>
 
