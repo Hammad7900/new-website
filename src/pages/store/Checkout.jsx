@@ -252,10 +252,9 @@ export const Checkout = () => {
       return;
     }
 
-    // Add email/name prefill params to URL
+    // Do not prefill email in Whop URL so Whop does not trigger automated email OTP/login verification
     try {
       const url = new URL(purchaseUrl);
-      if (email.trim()) url.searchParams.set('email', email.trim());
       if (fullName.trim()) url.searchParams.set('name', fullName.trim());
       purchaseUrl = url.toString();
     } catch (_) {}
