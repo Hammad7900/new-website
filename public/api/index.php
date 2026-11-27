@@ -68,6 +68,8 @@ function loadStoreState() {
         'contactPhone' => '+1 (800) AURA-LUX',
         'contactHours' => 'Mon–Fri, 9am–6pm EST',
         'inquiries' => [],
+        'abandonedCheckouts' => [],
+        'pendingWhopOrders' => [],
     ];
     if (!is_file($path)) return $defaults;
     $state = json_decode(@file_get_contents($path), true);
@@ -636,6 +638,26 @@ if (str_ends_with($uri, '/coupon-validate') && $_SERVER['REQUEST_METHOD'] === 'P
     sendJson(200, ['success' => true, 'coupon' => $coupon, 'discount' => $discount]);
 }
 
+// Route: /api/check-order-status?orderId=XXX  (frontend polls this after Whop payment)
+if (strpos($uri, 'check-order-status') !== false || $endpoint === 'check-order-status') {
+    $orderId = trim($_GET['orderId'] ?? '');
+    if (!$orderId) sendJson(400, ['success' => false, 'error' => 'orderId required']);
+    $state = loadStoreState();
+    // Check confirmed orders first
+    foreach ($state['orders'] as $o) {
+        if ($o['id'] === $orderId) {
+            sendJson(200, ['success' => true, 'status' => $o['status'], 'paid' => in_array($o['status'], ['PAID','PLACED_ON_CJ','DISPATCHED']), 'order' => $o]);
+        }
+    }
+    // Check pending
+    foreach ($state['pendingWhopOrders'] ?? [] as $p) {
+        if ($p['id'] === $orderId) {
+            sendJson(200, ['success' => true, 'status' => 'PENDING_PAYMENT', 'paid' => false]);
+        }
+    }
+    sendJson(200, ['success' => false, 'status' => 'NOT_FOUND', 'paid' => false]);
+}
+
 if (str_ends_with($uri, '/orders')) {
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         if (!adminPasswordIsValid($ADMIN_PASSWORD)) sendJson(401, ['success' => false, 'error' => 'Administrator authentication required.']);
@@ -685,10 +707,15 @@ if (str_ends_with($uri, '/orders')) {
                 }
             }
         }
+        // Determine order status — if already marked PAID by checkout flow, honor it
+        $requestedStatus = $body['status'] ?? 'PAYMENT_REVIEW';
+        $allowedStatuses = ['PAYMENT_REVIEW', 'PAID', 'PLACED_ON_CJ', 'DISPATCHED'];
+        $orderStatus = in_array($requestedStatus, $allowedStatuses, true) ? $requestedStatus : 'PAYMENT_REVIEW';
+
         $order = [
             'id' => 'ORD-' . strtoupper(bin2hex(random_bytes(5))),
             'createdAt' => gmdate('c'),
-            'status' => 'PAYMENT_REVIEW',
+            'status' => $orderStatus,
             'customer' => $customer,
             'shippingAddress' => $address,
             'items' => $verifiedItems,
@@ -700,6 +727,91 @@ if (str_ends_with($uri, '/orders')) {
             'paymentMethod' => $body['paymentMethod'] ?? 'Whop (awaiting manual verification)',
         ];
         $state = saveStoreState(['orders' => array_merge([$order], $state['orders'])]);
+
+        // ── Email notification to admin ──────────────────────────────────────
+        $adminEmail = $state['contactEmail'] ?? '';
+        if ($adminEmail && filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+            $host = $_SERVER['HTTP_HOST'] ?? 'store.com';
+            $itemLines = '';
+            foreach ($verifiedItems as $it) {
+                $lineTotal = round((float)$it['price'] * (int)$it['quantity'], 2);
+                $itemLines .= "  - {$it['name']} (Qty: {$it['quantity']}) — \${$lineTotal}\n";
+            }
+            $orderTotal = number_format($order['total'], 2);
+            $orderSubtotal = number_format($order['subtotal'], 2);
+            $orderShipping = number_format($order['shipping'], 2);
+            $orderDiscount = $order['discountAmount'] > 0 ? "\n  Discount: -\$" . number_format($order['discountAmount'], 2) : '';
+            $custName  = $customer['name'] ?? '';
+            $custEmail = $customer['email'] ?? '';
+            $custPhone = $customer['phone'] ?? 'N/A';
+            $shipStreet  = $address['street'] ?? '';
+            $shipCity    = $address['city'] ?? '';
+            $shipState   = $address['state'] ?? '';
+            $shipZip     = $address['zip'] ?? '';
+            $shipCountry = $address['country'] ?? '';
+            $statusLabel = $orderStatus === 'PAID' ? 'PAID ✓' : 'PAYMENT REVIEW (verify in Whop)';
+            $mailSubject = "🛍 New Order {$order['id']} — \${$orderTotal} USD";
+            $mailBody = "NEW ORDER RECEIVED — AURA LUXURY\n"
+                . str_repeat('=', 50) . "\n\n"
+                . "Order ID  : {$order['id']}\n"
+                . "Date      : " . date('Y-m-d H:i:s') . " UTC\n"
+                . "Status    : {$statusLabel}\n"
+                . "Payment   : {$order['paymentMethod']}\n\n"
+                . "CUSTOMER\n" . str_repeat('-', 30) . "\n"
+                . "Name   : {$custName}\n"
+                . "Email  : {$custEmail}\n"
+                . "Phone  : {$custPhone}\n\n"
+                . "SHIPPING ADDRESS\n" . str_repeat('-', 30) . "\n"
+                . "{$shipStreet}\n"
+                . "{$shipCity}, {$shipState} {$shipZip}\n"
+                . "{$shipCountry}\n\n"
+                . "ORDER ITEMS\n" . str_repeat('-', 30) . "\n"
+                . $itemLines . "\n"
+                . "Subtotal : \${$orderSubtotal}"
+                . $orderDiscount . "\n"
+                . "Shipping : \${$orderShipping}\n"
+                . "TOTAL    : \${$orderTotal} USD\n\n"
+                . str_repeat('=', 50) . "\n"
+                . "Log in to your admin panel to dispatch this order.\n";
+
+            $mailHeaders  = "From: orders@{$host}\r\n";
+            $mailHeaders .= "Reply-To: {$custEmail}\r\n";
+            $mailHeaders .= "Content-Type: text/plain; charset=UTF-8\r\n";
+            @mail($adminEmail, $mailSubject, $mailBody, $mailHeaders);
+        }
+
+        // ── Customer confirmation email ───────────────────────────────────────
+        $custEmail2 = $customer['email'] ?? '';
+        if ($custEmail2 && filter_var($custEmail2, FILTER_VALIDATE_EMAIL)) {
+            $host2 = $_SERVER['HTTP_HOST'] ?? 'store.com';
+            $itemLinesCust = '';
+            foreach ($verifiedItems as $it) {
+                $lineTotal = round((float)$it['price'] * (int)$it['quantity'], 2);
+                $itemLinesCust .= "  - {$it['name']} x{$it['quantity']}  \$" . number_format($lineTotal, 2) . "\n";
+            }
+            $custSubject = "Order Confirmed — {$order['id']} | AURA LUXURY";
+            $custBody = "Thank you for your order, {$customer['name']}!\n\n"
+                . "Your order has been received and payment is being verified.\n\n"
+                . "ORDER SUMMARY\n" . str_repeat('-', 30) . "\n"
+                . "Order ID : {$order['id']}\n"
+                . "Date     : " . date('Y-m-d H:i:s') . " UTC\n\n"
+                . "ITEMS\n"
+                . $itemLinesCust . "\n"
+                . "Subtotal : \$" . number_format($order['subtotal'], 2) . "\n"
+                . "Shipping : \$" . number_format($order['shipping'], 2) . "\n"
+                . "TOTAL    : \$" . number_format($order['total'], 2) . " USD\n\n"
+                . "SHIPPING TO\n" . str_repeat('-', 30) . "\n"
+                . "{$address['street']}\n"
+                . "{$address['city']}, {$address['state']} {$address['zip']}\n"
+                . "{$address['country']}\n\n"
+                . "We will notify you once your order is dispatched.\n"
+                . "For any questions, reply to this email or visit our store.\n\n"
+                . "— AURA LUXURY Team\n";
+            $custHeaders  = "From: orders@{$host2}\r\n";
+            $custHeaders .= "Content-Type: text/plain; charset=UTF-8\r\n";
+            @mail($custEmail2, $custSubject, $custBody, $custHeaders);
+        }
+
         sendJson(201, ['success' => true, 'order' => $order]);
     }
     if ($_SERVER['REQUEST_METHOD'] === 'PATCH') {
@@ -742,20 +854,45 @@ if (strpos($uri, 'create-whop-checkout') !== false || $endpoint === 'create-whop
     $accountId = 'biz_0DSMZeYhX5GeRy';
     $productId = 'prod_8lUVRU6hM1Bdo';
 
-    $orderId = !empty($body['orderId']) ? trim($body['orderId']) : ('ORD-' . time());
+    $orderId = !empty($body['orderId']) ? trim($body['orderId']) : ('ORD-' . strtoupper(bin2hex(random_bytes(4))));
     $customerEmail = !empty($body['customerEmail']) ? trim($body['customerEmail']) : '';
-    $customerName = !empty($body['customerName']) ? trim($body['customerName']) : '';
+    $customerName  = !empty($body['customerName'])  ? trim($body['customerName'])  : '';
+
+    // ── Pre-save order as PENDING_PAYMENT so it appears in admin even if customer never returns ──
+    $state = loadStoreState();
+    $pendingOrder = [
+        'id'              => $orderId,
+        'createdAt'       => gmdate('c'),
+        'status'          => 'PENDING_PAYMENT',
+        'customer'        => $body['customer'] ?? ['name' => $customerName, 'email' => $customerEmail, 'phone' => $body['customerPhone'] ?? ''],
+        'shippingAddress' => $body['shippingAddress'] ?? [],
+        'items'           => $body['items'] ?? [],
+        'subtotal'        => (float)($body['subtotal'] ?? $amount),
+        'shipping'        => (float)($body['shipping'] ?? 0),
+        'discountAmount'  => (float)($body['discountAmount'] ?? 0),
+        'total'           => round($amount, 2),
+        'couponCode'      => $body['couponCode'] ?? null,
+        'paymentMethod'   => 'Whop (awaiting payment confirmation)',
+        'whopPlanId'      => null, // filled after Whop plan created
+    ];
+    // Only add if not duplicate orderId
+    $exists = false;
+    foreach ($state['pendingWhopOrders'] as $po) { if ($po['id'] === $orderId) { $exists = true; break; } }
+    if (!$exists) {
+        $state['pendingWhopOrders'] = array_merge([$pendingOrder], $state['pendingWhopOrders'] ?? []);
+        saveStoreState(['pendingWhopOrders' => $state['pendingWhopOrders']]);
+    }
 
     $ch = curl_init('https://api.whop.com/api/v1/plans');
     $payload = json_encode([
-        'account_id' => $accountId,
-        'product_id' => $productId,
+        'account_id'    => $accountId,
+        'product_id'    => $productId,
         'initial_price' => round($amount, 2),
-        'currency' => 'usd',
-        'billing_type' => 'one_time',
-        'release_method' => 'buy_now',
-        'visibility' => 'hidden',
-        'metadata' => (object)[],
+        'currency'      => 'usd',
+        'billing_type'  => 'one_time',
+        'release_method'=> 'buy_now',
+        'visibility'    => 'hidden',
+        'metadata'      => (object)[],
     ]);
 
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -767,7 +904,7 @@ if (strpos($uri, 'create-whop-checkout') !== false || $endpoint === 'create-whop
         'Content-Length: ' . mb_strlen($payload, '8bit')
     ]);
     curl_setopt($ch, CURLOPT_TIMEOUT, 20);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Hostinger SSL compat
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     $curlError = '';
@@ -776,30 +913,218 @@ if (strpos($uri, 'create-whop-checkout') !== false || $endpoint === 'create-whop
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    // Write debug log (delete after debugging)
-    $logDir = __DIR__ . '/../';
-    @file_put_contents($logDir . 'whop-debug.log',
-        date('Y-m-d H:i:s') . " HTTP={$httpCode} cURLErr={$curlError} Resp=" . substr($response ?: '', 0, 500) . "\n",
+    $resData = json_decode($response, true) ?: [];
+    if ($httpCode >= 200 && $httpCode < 300 && !empty($resData['purchase_url'])) {
+        // Store whopPlanId in pending order for webhook matching
+        $planId = $resData['id'] ?? null;
+        if ($planId) {
+            $state2 = loadStoreState();
+            foreach ($state2['pendingWhopOrders'] as &$po) {
+                if ($po['id'] === $orderId) { $po['whopPlanId'] = $planId; break; }
+            }
+            unset($po);
+            saveStoreState(['pendingWhopOrders' => $state2['pendingWhopOrders']]);
+        }
+        sendJson(200, [
+            'success'     => true,
+            'checkoutUrl' => $resData['purchase_url'],
+            'planId'      => $planId,
+            'orderId'     => $orderId,
+            'amount'      => round($amount, 2),
+        ]);
+    } else {
+        sendJson(200, [
+            'success'    => false,
+            'error'      => 'Whop plan creation failed',
+            'httpCode'   => $httpCode,
+            'curlError'  => $curlError,
+            'orderId'    => $orderId,
+        ]);
+    }
+}
+
+// Route: /api/whop-webhook  (Whop calls this when payment is confirmed)
+if (strpos($uri, 'whop-webhook') !== false || $endpoint === 'whop-webhook') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') sendJson(405, ['success' => false, 'error' => 'POST required.']);
+    $raw  = file_get_contents('php://input');
+    $event = json_decode($raw, true) ?: [];
+
+    // Whop sends: {"action":"payment.completed","data":{"membership":{"plan_id":"...","checkout_id":"...","user":{"email":"...","name":"..."}},...}}
+    $action   = $event['action'] ?? $event['type'] ?? '';
+    $planId   = $event['data']['membership']['plan_id'] ?? $event['data']['plan_id'] ?? $event['data']['object']['plan_id'] ?? null;
+    $buyerEmail = $event['data']['membership']['user']['email'] ?? $event['data']['customer']['email'] ?? '';
+    $buyerName  = $event['data']['membership']['user']['username'] ?? $event['data']['customer']['name'] ?? '';
+    $paidAmount = (float)($event['data']['payment']['subtotal'] ?? $event['data']['amount'] ?? 0);
+
+    // Log webhook for debugging
+    @file_put_contents(dirname(__DIR__) . '/whop-webhook.log',
+        date('Y-m-d H:i:s') . " action={$action} planId={$planId} email={$buyerEmail}\n" . substr($raw, 0, 500) . "\n---\n",
         FILE_APPEND
     );
 
-    $resData = json_decode($response, true) ?: [];
-    if ($httpCode >= 200 && $httpCode < 300 && !empty($resData['purchase_url'])) {
-        sendJson(200, [
-            'success' => true,
-            'checkoutUrl' => $resData['purchase_url'],
-            'planId' => $resData['id'] ?? null,
-            'amount' => round($amount, 2),
-        ]);
-    } else {
-        // Dynamic plan creation failed — return failure (frontend will handle)
-        sendJson(200, [
-            'success' => false,
-            'error' => 'Whop plan creation failed',
-            'httpCode' => $httpCode,
-            'curlError' => $curlError ?? '',
-        ]);
+    $isPayment = (strpos($action, 'payment') !== false || strpos($action, 'membership.went_valid') !== false || strpos($action, 'sale') !== false);
+    if (!$isPayment || !$planId) {
+        sendJson(200, ['received' => true, 'note' => 'not a payment event']);
     }
+
+    $state = loadStoreState();
+
+    // Find pending order by whopPlanId
+    $matched = null;
+    foreach ($state['pendingWhopOrders'] as $po) {
+        if (($po['whopPlanId'] ?? '') === $planId) { $matched = $po; break; }
+    }
+
+    if ($matched) {
+        // Move from pendingWhopOrders → orders with PAID status
+        $order = array_merge($matched, [
+            'status'        => 'PAID',
+            'paymentMethod' => 'Whop (Webhook Confirmed)',
+            'paidAt'        => gmdate('c'),
+            'whopBuyer'     => $buyerEmail,
+        ]);
+        // If customer info missing from pending order, fill from Whop data
+        if (empty($order['customer']['name']) && $buyerName)  $order['customer']['name']  = $buyerName;
+        if (empty($order['customer']['email']) && $buyerEmail) $order['customer']['email'] = $buyerEmail;
+
+        // Add to real orders
+        $alreadySaved = false;
+        foreach ($state['orders'] as $o) { if ($o['id'] === $order['id']) { $alreadySaved = true; break; } }
+        if (!$alreadySaved) {
+            $state['orders'] = array_merge([$order], $state['orders']);
+        }
+        // Remove from pending
+        $state['pendingWhopOrders'] = array_values(array_filter($state['pendingWhopOrders'], fn($p) => $p['id'] !== $order['id']));
+        saveStoreState(['orders' => $state['orders'], 'pendingWhopOrders' => $state['pendingWhopOrders']]);
+
+        // ── Send admin email ──────────────────────────────────────────────────
+        $adminEmail = $state['contactEmail'] ?? 'muhammadhammadali958@gmail.com';
+        $host = $_SERVER['HTTP_HOST'] ?? 'store';
+        $itemLines = '';
+        foreach ($order['items'] as $it) {
+            $itemLines .= "  - {$it['name']} x{$it['quantity']}  \$" . number_format((float)$it['price'] * (int)$it['quantity'], 2) . "\n";
+        }
+        $mailSubject = "✅ PAID Order {$order['id']} — \$" . number_format($order['total'], 2) . " USD";
+        $mailBody = "NEW PAID ORDER — AURA LUXURY\n"
+            . str_repeat('=', 50) . "\n\n"
+            . "Order ID : {$order['id']}\n"
+            . "Date     : " . date('Y-m-d H:i:s') . " UTC\n"
+            . "Status   : PAID ✓ (Whop Webhook Confirmed)\n\n"
+            . "CUSTOMER\n" . str_repeat('-', 30) . "\n"
+            . "Name     : " . ($order['customer']['name'] ?? '') . "\n"
+            . "Email    : " . ($order['customer']['email'] ?? '') . "\n"
+            . "Phone    : " . ($order['customer']['phone'] ?? 'N/A') . "\n\n"
+            . "SHIPPING\n" . str_repeat('-', 30) . "\n"
+            . ($order['shippingAddress']['street'] ?? '') . "\n"
+            . ($order['shippingAddress']['city'] ?? '') . ", " . ($order['shippingAddress']['state'] ?? '') . " " . ($order['shippingAddress']['zip'] ?? '') . "\n"
+            . ($order['shippingAddress']['country'] ?? '') . "\n\n"
+            . "ITEMS\n" . str_repeat('-', 30) . "\n"
+            . $itemLines . "\n"
+            . "Total : \$" . number_format($order['total'], 2) . " USD\n\n"
+            . str_repeat('=', 50) . "\n"
+            . "Login to admin panel to dispatch.\n";
+        $mailHeaders = "From: orders@{$host}\r\nContent-Type: text/plain; charset=UTF-8\r\n";
+        @mail($adminEmail, $mailSubject, $mailBody, $mailHeaders);
+        // Also notify with hardcoded gmail as backup
+        @mail('muhammadhammadali958@gmail.com', $mailSubject, $mailBody, $mailHeaders);
+
+        sendJson(200, ['success' => true, 'orderId' => $order['id']]);
+    }
+
+    // No matching pending order — still save a basic record from Whop data
+    if ($buyerEmail) {
+        $fallbackOrder = [
+            'id'          => 'WH-' . strtoupper(substr(md5($planId . time()), 0, 8)),
+            'createdAt'   => gmdate('c'),
+            'status'      => 'PAID',
+            'customer'    => ['name' => $buyerName ?: 'Whop Customer', 'email' => $buyerEmail, 'phone' => ''],
+            'shippingAddress' => [],
+            'items'       => [],
+            'subtotal'    => $paidAmount,
+            'shipping'    => 0,
+            'discountAmount' => 0,
+            'total'       => $paidAmount,
+            'couponCode'  => null,
+            'paymentMethod'=> 'Whop (Webhook — partial data)',
+            'whopPlanId'  => $planId,
+            'whopBuyer'   => $buyerEmail,
+            'note'        => 'Full order details not captured — customer did not return to site.',
+        ];
+        $state['orders'] = array_merge([$fallbackOrder], $state['orders']);
+        saveStoreState(['orders' => $state['orders']]);
+        // Email admin
+        $adminEmail2 = $state['contactEmail'] ?? 'muhammadhammadali958@gmail.com';
+        $host2 = $_SERVER['HTTP_HOST'] ?? 'store';
+        $sub2 = "✅ Whop Payment Received — \$" . number_format($paidAmount, 2) . " from {$buyerEmail}";
+        $body2 = "WHOP PAYMENT RECEIVED\n\nBuyer: {$buyerEmail}\nAmount: \${$paidAmount}\nPlan: {$planId}\n\nFull order details not captured (customer did not return to site). Check Whop dashboard for order details.\n";
+        @mail($adminEmail2, $sub2, $body2, "From: orders@{$host2}\r\nContent-Type: text/plain; charset=UTF-8\r\n");
+        @mail('muhammadhammadali958@gmail.com', $sub2, $body2, "From: orders@{$host2}\r\nContent-Type: text/plain; charset=UTF-8\r\n");
+    }
+    sendJson(200, ['received' => true]);
+}
+
+// Route: /api/abandoned-checkouts (save + get abandoned checkout data)
+if (strpos($uri, 'abandoned-checkouts') !== false || $endpoint === 'abandoned-checkouts') {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        $state = loadStoreState();
+        $entry = [
+            'id'        => 'AB-' . strtoupper(bin2hex(random_bytes(4))),
+            'savedAt'   => gmdate('c'),
+            'name'      => trim($body['name'] ?? ''),
+            'email'     => trim($body['email'] ?? ''),
+            'phone'     => trim($body['phone'] ?? ''),
+            'country'   => trim($body['country'] ?? ''),
+            'street'    => trim($body['street'] ?? ''),
+            'city'      => trim($body['city'] ?? ''),
+            'state'     => trim($body['state'] ?? ''),
+            'zip'       => trim($body['zip'] ?? ''),
+            'items'     => $body['items'] ?? [],
+            'total'     => (float)($body['total'] ?? 0),
+            'cartSummary' => $body['cartSummary'] ?? '',
+        ];
+        $state['abandonedCheckouts'] = array_merge([$entry], $state['abandonedCheckouts'] ?? []);
+        saveStoreState(['abandonedCheckouts' => $state['abandonedCheckouts']]);
+        sendJson(201, ['success' => true]);
+    }
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        if (!adminPasswordIsValid($ADMIN_PASSWORD)) sendJson(401, ['success' => false, 'error' => 'Admin auth required.']);
+        $state = loadStoreState();
+        sendJson(200, ['success' => true, 'abandonedCheckouts' => $state['abandonedCheckouts'] ?? []]);
+    }
+    if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+        if (!adminPasswordIsValid($ADMIN_PASSWORD)) sendJson(401, ['success' => false, 'error' => 'Admin auth required.']);
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        $delId = $body['id'] ?? '';
+        $state = loadStoreState();
+        $state['abandonedCheckouts'] = array_values(array_filter($state['abandonedCheckouts'] ?? [], fn($a) => $a['id'] !== $delId));
+        saveStoreState(['abandonedCheckouts' => $state['abandonedCheckouts']]);
+        sendJson(200, ['success' => true]);
+    }
+    sendJson(405, ['success' => false, 'error' => 'GET, POST or DELETE required.']);
+}
+
+// Route: /api/pending-orders (admin view of PENDING_PAYMENT orders)
+if (strpos($uri, 'pending-orders') !== false || $endpoint === 'pending-orders') {
+    if (!adminPasswordIsValid($ADMIN_PASSWORD)) sendJson(401, ['success' => false, 'error' => 'Admin auth required.']);
+    $state = loadStoreState();
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        sendJson(200, ['success' => true, 'pendingOrders' => $state['pendingWhopOrders'] ?? []]);
+    }
+    // PATCH: manually confirm a pending order as PAID (admin override)
+    if ($_SERVER['REQUEST_METHOD'] === 'PATCH') {
+        $body = json_decode(file_get_contents('php://input'), true) ?: [];
+        $confirmId = $body['id'] ?? '';
+        $matched = null;
+        foreach ($state['pendingWhopOrders'] as $po) { if ($po['id'] === $confirmId) { $matched = $po; break; } }
+        if (!$matched) sendJson(404, ['success' => false, 'error' => 'Pending order not found.']);
+        $order = array_merge($matched, ['status' => 'PAID', 'paymentMethod' => 'Whop (Admin Confirmed)', 'paidAt' => gmdate('c')]);
+        $state['orders'] = array_merge([$order], $state['orders']);
+        $state['pendingWhopOrders'] = array_values(array_filter($state['pendingWhopOrders'], fn($p) => $p['id'] !== $confirmId));
+        saveStoreState(['orders' => $state['orders'], 'pendingWhopOrders' => $state['pendingWhopOrders']]);
+        sendJson(200, ['success' => true, 'order' => $order]);
+    }
+    sendJson(405, ['success' => false, 'error' => 'GET or PATCH required.']);
 }
 
 // Route: /api/cj-products

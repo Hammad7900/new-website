@@ -1,31 +1,82 @@
 // src/pages/admin/AdminOrders.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { AdminLayout } from '../../components/admin/AdminLayout';
 import { useCart } from '../../context/CartContext';
 import { placeOrderOnCJ } from '../../services/api';
 import {
-  PackageCheck,
-  CheckCircle2,
-  Clock,
-  Search,
-  Eye,
-  AlertCircle,
-  X,
-  Send,
-  Loader2,
+  PackageCheck, CheckCircle2, Clock, Search, Eye, AlertCircle, X,
+  Send, Loader2, ShoppingCart, Phone, Mail, MapPin, Trash2, RefreshCw,
+  UserX, CreditCard,
 } from 'lucide-react';
 
 export const AdminOrders = () => {
   const { orders, updateOrderStatus, refreshOrders } = useCart();
-  const [filter, setFilter] = useState('ALL');
-  const [search, setSearch] = useState('');
+  const [filter, setFilter]               = useState('ALL');
+  const [search, setSearch]               = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loadingOrderId, setLoadingOrderId] = useState(null);
-  const [notification, setNotification] = useState(null);
+  const [notification, setNotification]   = useState(null);
+
+  // Pending Whop orders & Abandoned checkouts
+  const [pendingOrders, setPendingOrders]   = useState([]);
+  const [abandoned, setAbandoned]           = useState([]);
+  const [activeTab, setActiveTab]           = useState('orders'); // 'orders' | 'pending' | 'abandoned'
+  const [confirmingId, setConfirmingId]     = useState(null);
+
+  const fetchPending = useCallback(async () => {
+    try {
+      const r = await fetch('/api/pending-orders');
+      const d = await r.json().catch(() => ({}));
+      if (d.success) setPendingOrders(d.pendingOrders || []);
+    } catch (_) {}
+  }, []);
+
+  const fetchAbandoned = useCallback(async () => {
+    try {
+      const r = await fetch('/api/abandoned-checkouts');
+      const d = await r.json().catch(() => ({}));
+      if (d.success) setAbandoned(d.abandonedCheckouts || []);
+    } catch (_) {}
+  }, []);
 
   useEffect(() => {
-    refreshOrders().catch((error) => setNotification({ type: 'error', message: error.message }));
+    refreshOrders().catch(err => setNotification({ type: 'error', message: err.message }));
+    fetchPending();
+    fetchAbandoned();
   }, []);
+
+  // Manually confirm a pending order as PAID
+  const handleConfirmPending = async (order) => {
+    setConfirmingId(order.id);
+    try {
+      const r = await fetch('/api/pending-orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: order.id }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (d.success) {
+        setNotification({ type: 'success', message: `Order ${order.id} confirmed as PAID and moved to orders.` });
+        fetchPending();
+        refreshOrders();
+      }
+    } catch (err) {
+      setNotification({ type: 'error', message: `Failed: ${err.message}` });
+    }
+    setConfirmingId(null);
+  };
+
+  // Delete abandoned checkout
+  const handleDeleteAbandoned = async (id) => {
+    try {
+      await fetch('/api/abandoned-checkouts', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      setAbandoned(prev => prev.filter(a => a.id !== id));
+    } catch (_) {}
+  };
 
   // Filter orders
   const filteredOrders = orders.filter((order) => {
@@ -95,9 +146,161 @@ export const AdminOrders = () => {
     <AdminLayout title="Customer Orders Management">
       {/* Toast Notification */}
       {notification && (
-        <div
-          className={`mb-6 p-4 rounded-2xl border text-xs font-medium flex items-center justify-between ${
-            notification.type === 'success'
+        <div className={`mb-6 p-4 rounded-2xl border text-xs font-medium flex items-center justify-between ${
+          notification.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {notification.type === 'success' ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />}
+            <span>{notification.message}</span>
+          </div>
+          <button onClick={() => setNotification(null)} className="text-stone-400 hover:text-stone-700 ml-4"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {/* Top Tabs */}
+      <div className="flex space-x-2 mb-6">
+        {[
+          { id: 'orders', label: `Confirmed Orders (${orders.length})`, icon: PackageCheck },
+          { id: 'pending', label: `Pending Payment (${pendingOrders.length})`, icon: Clock },
+          { id: 'abandoned', label: `Abandoned Checkouts (${abandoned.length})`, icon: UserX },
+        ].map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all border ${
+              activeTab === tab.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white text-stone-600 border-stone-200 hover:border-stone-400'
+            }`}>
+            <tab.icon className="w-3.5 h-3.5" />
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ═══ PENDING PAYMENT ORDERS ═══ */}
+      {activeTab === 'pending' && (
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800 flex items-start space-x-2">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <div>
+              <strong>Pending Payment Orders</strong> — These customers started checkout and a Whop payment link was created, but payment confirmation hasn't been received yet.
+              Verify payment in <strong>Whop Dashboard → Payments</strong> and click <em>"Confirm as Paid"</em> to move them to orders.
+              Or they will auto-confirm when Whop sends a webhook.
+            </div>
+          </div>
+          {pendingOrders.length === 0 ? (
+            <div className="bg-white border border-stone-200 rounded-2xl p-10 text-center text-stone-400 text-sm">
+              <Clock className="w-8 h-8 mx-auto mb-3 text-stone-300" />
+              No pending payment orders right now.
+            </div>
+          ) : pendingOrders.map(order => (
+            <div key={order.id} className="bg-white border border-amber-200/60 rounded-2xl p-5 shadow-xs">
+              <div className="flex items-start justify-between flex-wrap gap-3">
+                <div>
+                  <div className="flex items-center space-x-2 mb-1">
+                    <span className="font-mono text-xs font-bold text-stone-900">{order.id}</span>
+                    <span className="text-[10px] font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">PENDING PAYMENT</span>
+                  </div>
+                  <div className="text-xs text-stone-500 space-y-0.5">
+                    <div className="flex items-center space-x-1"><Mail className="w-3 h-3" /><span>{order.customer?.name}</span><span className="text-stone-400">·</span><span>{order.customer?.email}</span></div>
+                    <div className="flex items-center space-x-1"><Phone className="w-3 h-3" /><span>{order.customer?.phone || 'N/A'}</span></div>
+                    <div className="flex items-center space-x-1"><MapPin className="w-3 h-3" /><span>{order.shippingAddress?.city}, {order.shippingAddress?.country}</span></div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-serif text-lg font-semibold text-stone-900">${order.total?.toFixed(2)}</div>
+                  <div className="text-[11px] text-stone-400 mt-0.5">{order.items?.length || 0} item(s)</div>
+                  <div className="text-[10px] text-stone-400">{new Date(order.createdAt).toLocaleString()}</div>
+                </div>
+              </div>
+              {order.items?.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-stone-100 text-xs text-stone-600">
+                  {order.items.map((it, i) => <span key={i}>{it.name} x{it.quantity}{i < order.items.length - 1 ? ', ' : ''}</span>)}
+                </div>
+              )}
+              <div className="mt-3 pt-3 border-t border-stone-100 flex items-center justify-between">
+                <span className="text-[11px] text-stone-400">Verify payment in Whop dashboard first</span>
+                <button onClick={() => handleConfirmPending(order)} disabled={confirmingId === order.id}
+                  className="flex items-center space-x-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl disabled:opacity-50 transition-colors">
+                  {confirmingId === order.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                  <span>Confirm as Paid</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ═══ ABANDONED CHECKOUTS ═══ */}
+      {activeTab === 'abandoned' && (
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-xs text-blue-800 flex items-start space-x-2">
+            <ShoppingCart className="w-4 h-4 shrink-0 mt-0.5" />
+            <div>
+              <strong>Abandoned Checkouts</strong> — Customers who filled the form but did not complete payment. Contact them to recover the sale.
+            </div>
+          </div>
+          {abandoned.length === 0 ? (
+            <div className="bg-white border border-stone-200 rounded-2xl p-10 text-center text-stone-400 text-sm">
+              <UserX className="w-8 h-8 mx-auto mb-3 text-stone-300" />
+              No abandoned checkouts yet.
+            </div>
+          ) : abandoned.map(ab => (
+            <div key={ab.id} className="bg-white border border-blue-100 rounded-2xl p-5 shadow-xs">
+              <div className="flex items-start justify-between flex-wrap gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-semibold text-stone-900 text-sm">{ab.name || 'Anonymous'}</span>
+                    <span className="text-[10px] font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">ABANDONED</span>
+                  </div>
+                  <div className="flex items-center space-x-1 text-xs text-stone-600">
+                    <Mail className="w-3 h-3 text-blue-500" />
+                    <a href={`mailto:${ab.email}`} className="text-blue-700 hover:underline font-medium">{ab.email || 'N/A'}</a>
+                  </div>
+                  <div className="flex items-center space-x-1 text-xs text-stone-600">
+                    <Phone className="w-3 h-3 text-blue-500" />
+                    <a href={`tel:${ab.phone}`} className="text-blue-700 hover:underline font-medium">{ab.phone || 'N/A'}</a>
+                  </div>
+                  <div className="flex items-center space-x-1 text-xs text-stone-500">
+                    <MapPin className="w-3 h-3" />
+                    <span>{[ab.street, ab.city, ab.state, ab.zip, ab.country].filter(Boolean).join(', ')}</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-serif text-lg font-semibold text-stone-900">${ab.total?.toFixed(2)}</div>
+                  <div className="text-[10px] text-stone-400 mt-0.5">{new Date(ab.savedAt).toLocaleString()}</div>
+                </div>
+              </div>
+              {ab.cartSummary && (
+                <div className="mt-3 pt-3 border-t border-stone-100 text-xs text-stone-500">
+                  🛒 {ab.cartSummary}
+                </div>
+              )}
+              <div className="mt-3 pt-3 border-t border-stone-100 flex items-center justify-between">
+                <div className="flex space-x-2">
+                  {ab.email && (
+                    <a href={`mailto:${ab.email}?subject=Your AURA Order&body=Hi ${ab.name},%0D%0A%0D%0AWe noticed you left items in your cart. We'd love to help you complete your order!%0D%0A%0D%0AItems: ${ab.cartSummary}%0D%0ATotal: $${ab.total}%0D%0A%0D%0AVisit us at your convenience.%0D%0A%0D%0AAURA Luxury Team`}
+                      className="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors">
+                      <Mail className="w-3 h-3" /><span>Email Customer</span>
+                    </a>
+                  )}
+                  {ab.phone && (
+                    <a href={`tel:${ab.phone}`} className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors">
+                      <Phone className="w-3 h-3" /><span>Call</span>
+                    </a>
+                  )}
+                </div>
+                <button onClick={() => handleDeleteAbandoned(ab.id)}
+                  className="flex items-center space-x-1 px-3 py-1.5 text-rose-600 hover:bg-rose-50 text-xs rounded-lg transition-colors">
+                  <Trash2 className="w-3.5 h-3.5" /><span>Remove</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ═══ CONFIRMED ORDERS (original view) ═══ */}
+      {activeTab === 'orders' && (<>
+      {/* Filter and Search Bar */}
+      <div className="bg-white border border-stone-200/90 rounded-2xl p-5 mb-6 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
               ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
               : 'bg-rose-50 border-rose-200 text-rose-800'
           }`}
@@ -411,6 +614,7 @@ export const AdminOrders = () => {
           </div>
         </div>
       )}
+      </>)}
     </AdminLayout>
   );
 };
